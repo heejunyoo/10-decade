@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Search - The Decade Journey{% endblock %}
+
+{% block content %}
+<section class="deep-memory-page" x-data="deepMemorySearch('{{ query }}')">
+
+    <!-- Header -->
+    <div class="dm-header">
+        <h2 class="dm-title">Memory Assistant</h2>
+        <p class="dm-subtitle">Relive your moments through conversation.</p>
+    </div>
+
+    <!-- Chat Stream -->
+    <div class="manage-container">
+        <div class="dm-messages">
+            <template x-for="msg in messages" :key="msg.id">
+                <div :class="['dm-message-row', msg.role]">
+
+                    <!-- Avatar -->
+                    <div class="dm-avatar">
+                        <span x-text="msg.role === 'user' ? '👤' : '✨'"></span>
+                    </div>
+
+                    <div class="dm-bubble-group">
+                        <!-- Text Bubble -->
+                        <div class="dm-bubble" x-html="msg.text"></div>
+
+                        <!-- Inline Photos (AI Only) -->
+                        <template x-if="msg.role === 'ai' && msg.photos && msg.photos.length > 0">
+                            <div class="dm-photo-scroller">
+                                <template x-for="photo in msg.photos" :key="photo.metadata.image_url">
+                                    <div class="dm-photo-card" @click="openLightbox(photo.metadata.image_url)">
+                                        <img :src="photo.metadata.image_url" :alt="photo.text" loading="lazy">
+                                        <div class="dm-photo-info">
+                                            <span x-text="photo.metadata.date"></span>
+                                            <span x-text="photo.metadata.location"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Loading State -->
+            <div x-show="isLoading" class="dm-message-row ai">
+                <div class="dm-avatar">✨</div>
+                <div class="dm-bubble loading">
+                    Thinking... <span class="typing-cursor">|</span>
+                </div>
+            </div>
+
+            <!-- Anchor for auto-scroll -->
+            <div id="scroll-anchor"></div>
+        </div>
+    </div>
+
+    <!-- Input Area (Fixed Bottom) -->
+    <div class="dm-input-wrapper">
+        <div class="dm-input-box">
+            <input type="text" x-ref="searchInput" x-model="currentInput"
+                @keydown.enter.prevent="if (!$event.isComposing) submitQuery()"
+                placeholder="Ask memories... (e.g., What did we eat in Jeju?)" autofocus>
+            <button @click="submitQuery()" :disabled="isLoading || !currentInput.trim()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+</section>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('deepMemorySearch', (initialQuery) => ({
+            messages: [],
+            currentInput: '',
+            isLoading: false,
+
+            init() {
+                if (initialQuery) {
+                    this.addMessage('user', initialQuery);
+                    this.performSearch(initialQuery);
+                }
+            },
+
+            addMessage(role, text, photos = []) {
+                this.messages.push({
+                    id: Date.now(),
+                    role: role,
+                    text: text,
+                    photos: photos
+                });
+                this.scrollToBottom();
+            },
+
+            scrollToBottom() {
+                this.$nextTick(() => {
+                    document.getElementById('scroll-anchor').scrollIntoView({ behavior: 'smooth' });
+                });
+            },
+
+            async submitQuery() {
+                const inputEl = this.$refs.searchInput;
+                const text = inputEl.value; // Read directly from DOM
+
+                if (!text.trim()) return;
+
+                // Clear immediately
+                this.currentInput = '';
+                inputEl.value = '';
+                inputEl.blur(); // Force blur to reset IME state
+                setTimeout(() => inputEl.focus(), 10); // Refocus shortly after
+
+                this.addMessage('user', text);
+                await this.performSearch(text);
+            },
+
+            async performSearch(text) {
+                this.isLoading = true;
+                this.scrollToBottom();
+
+                try {
+                    const response = await fetch('/chat/query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: text })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const formattedAnswer = data.answer.replace(/\n/g, '<br>');
+
+                        // Deduplicate photos
+                        const uniquePhotos = [];
+                        const seen = new Set();
+                        data.context_items.forEach(item => {
+                            if (item.metadata.image_url && !seen.has(item.metadata.image_url)) {
+                                seen.add(item.metadata.image_url);
+                                uniquePhotos.push(item);
+                            }
+                        });
+
+                        this.addMessage('ai', formattedAnswer, uniquePhotos);
+                    } else {
+                        this.addMessage('ai', "Sorry, I encountered an error. Please try again.");
+                    }
+                } catch (e) {
+                    this.addMessage('ai', "Connection failed. Please check the server.");
+                } finally {
+                    this.isLoading = false;
+                    this.scrollToBottom();
+                }
+            },
+
+            openLightbox(url) {
+                // Integrate with existing lightbox if available, or simple window open
+                // Assuming global function or just simple logic
+                const lightbox = document.getElementById('lightbox');
+                const lightboxImg = document.getElementById('lightbox-img');
+                if (lightbox && lightboxImg) {
+                    lightboxImg.src = url;
+                    lightbox.classList.add('active');
+                } else {
+                    window.open(url, '_blank');
+                }
+            }
+        }));
+    });
+</script>
+
+<style>
+    /* Page Layout */
+    .deep-memory-page {
+        position: relative;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 8rem 1rem 8rem 1rem;
+        /* Pad bottom for input */
+        min-height: 100vh;
+        font-family: 'Noto Serif KR', serif;
+    }
+
+    .dm-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .dm-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.5rem;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+    }
+
+    .dm-subtitle {
+        font-family: 'Lato', sans-serif;
+        color: #888;
+        font-size: 1.1rem;
+    }
+
+    /* Chat Stream */
+    .dm-chat-container {
+        margin-bottom: 2rem;
+    }
+
+    .dm-message-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        opacity: 0;
+        animation: fadeIn 0.5s forwards;
+    }
+
+    .dm-message-row.user {
+        flex-direction: row-reverse;
+    }
+
+    @keyframes fadeIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .dm-avatar {
+        width: 40px;
+        height: 40px;
+        background: #f0f0f0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        border: 1px solid #ddd;
+        flex-shrink: 0;
+    }
+
+    .dm-message-row.ai .dm-avatar {
+        background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .dm-message-row.user .dm-avatar {
+        background: #333;
+        color: white;
+        border: none;
+    }
+
+    .dm-bubble-group {
+        max-width: 80%;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .dm-bubble {
+        padding: 1rem 1.5rem;
+        border-radius: 18px;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        position: relative;
+    }
+
+    .dm-message-row.ai .dm-bubble {
+        background: white;
+        border: 1px solid #eee;
+        color: #333;
+        border-top-left-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    .dm-message-row.user .dm-bubble {
+        background: #1a1a1a;
+        color: white;
+        border-top-right-radius: 4px;
+    }
+
+    /* Loading Animation */
+    .dm-bubble.loading {
+        color: #888;
+        font-style: italic;
+        background: #fafafa;
+    }
+
+    .typing-cursor {
+        animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+        50% {
+            opacity: 0;
+        }
+    }
+
+    /* Inline Photo Scroller */
+    .dm-photo-scroller {
+        display: flex;
+        gap: 1rem;
+        overflow-x: auto;
+        padding-bottom: 1rem;
+        /* Space for scrollbar */
+        scrollbar-width: thin;
+    }
+
+    .dm-photo-scroller::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .dm-photo-scroller::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 3px;
+    }
+
+    .dm-photo-card {
+        flex: 0 0 200px;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+        transition: transform 0.2s;
+        border: 1px solid #f0f0f0;
+    }
+
+    .dm-photo-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .dm-photo-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+    }
+
+    .dm-photo-info {
+        padding: 0.8rem;
+        font-size: 0.8rem;
+        color: #666;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .dm-photo-info span:first-child {
+        font-weight: bold;
+        color: #333;
+    }
+
+    /* Input Area */
+    .dm-input-wrapper {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: center;
+        z-index: 100;
+    }
+
+    .dm-input-box {
+        width: 100%;
+        max-width: 800px;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .dm-input-box input {
+        width: 100%;
+        padding: 1.2rem 3.5rem 1.2rem 1.5rem;
+        border-radius: 40px;
+        border: 1px solid #e0e0e0;
+        background: #fff;
+        font-size: 1rem;
+        font-family: inherit;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        outline: none;
+        transition: all 0.3s ease;
+    }
+
+    .dm-input-box input:focus {
+        border-color: #333;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    .dm-input-box button {
+        position: absolute;
+        right: 12px;
+        background: #1a1a1a;
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .dm-input-box button:hover {
+        transform: scale(1.05);
+    }
+
+    .dm-input-box button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}

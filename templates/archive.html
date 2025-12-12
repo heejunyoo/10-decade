@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Memory Archive - The Decade Journey{% endblock %}
+
+{% block content %}
+<section class="archive-section">
+    <div class="archive-header">
+        <h1>Memory Archive</h1>
+        <p>Browse all your memories by date or media type</p>
+
+        <div class="flex flex-wrap gap-2 mt-6">
+            <a href="/archive"
+                class="px-4 py-2 rounded-full text-sm font-medium transition-colors border {{ 'bg-primary text-white border-transparent shadow-sm' if not current_filter else 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">All</a>
+            <a href="/archive?media_type=photo"
+                class="px-4 py-2 rounded-full text-sm font-medium transition-colors border {{ 'bg-primary text-white border-transparent shadow-sm' if current_filter == 'photo' else 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">📷
+                Photos</a>
+            <a href="/archive?media_type=video"
+                class="px-4 py-2 rounded-full text-sm font-medium transition-colors border {{ 'bg-primary text-white border-transparent shadow-sm' if current_filter == 'video' else 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">🎥
+                Videos</a>
+            <a href="/archive?media_type=people"
+                class="px-4 py-2 rounded-full text-sm font-medium transition-colors border {{ 'bg-primary text-white border-transparent shadow-sm' if current_filter == 'people' else 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">👥
+                People</a>
+        </div>
+    </div>
+
+    <div class="archive-container">
+        <!-- Calendar Side -->
+        <div class="calendar-wrapper">
+            <div class="calendar-header">
+                <button id="prevMonth">&lt;</button>
+                <h3 id="currentMonth"></h3>
+                <button id="nextMonth">&gt;</button>
+            </div>
+            <div class="calendar-grid" id="calendar">
+                <!-- JS will populate this -->
+            </div>
+            <button id="resetFilter" class="reset-btn" style="display: none;">Show All Memories</button>
+        </div>
+
+        <!-- Gallery Side -->
+        <div class="gallery-wrapper">
+            {% if current_filter == 'people' %}
+            <!-- People Grid Mode -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 py-4">
+                {% for person in people %}
+                <a href="/people/{{ person.id }}"
+                    class="group flex flex-col items-center hover:-translate-y-1 transition-transform p-4 rounded-xl hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100">
+                    <div
+                        class="w-24 h-24 rounded-full overflow-hidden shadow-sm group-hover:shadow-md transition-shadow bg-gray-100 mb-3 border-2 border-white ring-1 ring-gray-100">
+                        {% if person.cover_photo %}
+                        <img src="{{ person.cover_photo }}" alt="{{ person.name }}" loading="lazy"
+                            class="w-full h-full object-cover">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-3xl text-gray-300 bg-gray-50">?
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-center">
+                        <h3 class="font-serif text-lg text-gray-800 mb-1 group-hover:text-primary transition-colors">{{
+                            person.name }}</h3>
+                        <span
+                            class="text-xs text-gray-400 uppercase tracking-wide font-medium bg-gray-50 px-2 py-0.5 rounded-full">{{
+                            person.faces|length }} memories</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <!-- Standard Events Masonry Grid -->
+            <div class="masonry-grid" id="galleryGrid">
+                {% include "archive_item.html" %}
+            </div>
+            <div id="noPhotosMsg" style="display: none; text-align: center; padding: 2rem;">
+                <p>이 날짜에는 기록된 추억이 없습니다.</p>
+            </div>
+            {% endif %}
+
+            {% if total_count > limit %}
+            <div id="loadMoreContainer" style="text-align: center; padding: 2rem;">
+                <button id="loadMoreArchiveBtn" class="cta-button">Load More</button>
+                <p id="loadingArchiveText" style="display: none;"><span class="spinner"></span>Loading...</p>
+            </div>
+            {% endif %}
+
+            <div id="noPhotosMsg" style="display: none; text-align: center; padding: 2rem;">
+                <p>이 날짜에는 기록된 추억이 없습니다.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Data Configuration for Archive JS -->
+<!-- decoupling Jinja variables from JS to prevent syntax errors -->
+<div id="archive-config" style="display: none;" data-limit="{{ limit }}" data-total="{{ total_count }}"
+    data-type="{{ current_filter or '' }}">
+</div>
+
+<script src="/static/archive.js"></script>
+{% endblock %}

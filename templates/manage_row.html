@@ -1,0 +1,62 @@
+{% for event in events %}
+<tr data-id="{{ event.id }}">
+    <td class="date-col">{{ event.date }}</td>
+    <td class="thumb-col">
+        {% if event.thumbnail_url %}
+        <img src="{{ event.thumbnail_url }}" alt="Thumb" loading="lazy">
+        {% elif event.image_url %}
+        {% if event.media_type != 'video' %}
+        <img src="{{ event.image_url }}" alt="Thumb" loading="lazy">
+        {% else %}
+        <span>🎬 Video</span>
+        {% endif %}
+        {% else %}
+        <span>📝 Text</span>
+        {% endif %}
+    </td>
+    <td class="details-col">
+        <strong>{{ event.title or 'No Title' }}</strong>
+        <p>{{ event.description or '' }}</p>
+        <small class="tags">{{ event.tags or '' }}</small>
+    </td>
+    <!-- AI Insight Column -->
+    <td class="ai-col" style="font-size: 0.9rem; color: #555;">
+        {% if event.summary %}
+        <div style="max-height: 80px; overflow-y: auto;">
+            {{ event.summary }}
+        </div>
+        {% else %}
+        <span style="color: #bbb; font-style: italic;">Processing...</span>
+        {% endif %}
+    </td>
+
+    <!-- User Memories Column -->
+    <td class="memories-col">
+        {% if event.interactions %}
+        {% for interaction in event.interactions %}
+        {% if interaction.is_answered %}
+        <div style="margin-bottom: 0.5rem; border-left: 2px solid #ddd; padding-left: 0.5rem;">
+            <div style="font-size: 0.8rem; color: #888;">Q: {{ interaction.question }}</div>
+            <div style="font-size: 0.9rem; font-weight: 500;">A: {{ interaction.answer }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <span style="color: #bbb;">-</span>
+        {% endif %}
+    </td>
+    <td class="id-col">#{{ event.id }}</td>
+    <td class="actions-col">
+        <a href="/edit/{{ event.id }}" class="btn-edit-sm" title="Edit">✏️</a>
+        <button @click="confirmDelete('{{ event.id }}')" class="btn-delete-sm" title="Delete">🗑️</button>
+    </td>
+</tr>
+{% endfor %}
+
+{% if next_page %}
+<tr hx-get="/api/manage-events?page={{ next_page }}&limit={{ limit }}" hx-trigger="revealed" hx-swap="outerHTML">
+    <td colspan="7" style="text-align: center; padding: 20px; color: #888;">
+        Loading more records...
+    </td>
+</tr>
+{% endif %}

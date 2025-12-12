@@ -1,0 +1,136 @@
+from services.config import config
+from services.logger import get_logger
+
+logger = get_logger("ai_service")
+
+class AIService:
+    def generate_time_capsule_question(self, author_name: str, context: dict = None) -> str:
+        """
+        Generates a deep, reflective question for the Time Capsule.
+        """
+        provider = config.get("ai_provider")
+        logger.info(f"Generating Time Capsule Question via {provider} for {author_name}")
+
+        # 1. Context Analysis
+        if context:
+            date_str = context.get('date', '알 수 없는 날짜')
+            location = context.get('location', '어떤 장소')
+            people_list = context.get('people', [])
+            people_str = ", ".join(people_list) if people_list else "소중한 사람"
+            caption = context.get('caption', '사진 설명 없음')
+            
+            user_prompt = (
+                f"다음은 타임캡슐에 담길 사진의 정보입니다:\n"
+                f"- 촬영 날짜: {date_str}\n"
+                f"- 장소: {location}\n"
+                f"- 함께 있는 사람: {people_str}\n"
+                f"- 시각적 묘사: {caption}\n\n"
+                f"작성자({author_name})가 10년 뒤 이 사진을 다시 봤을 때, 당시의 감정을 떠올릴 수 있는 질문을 하나만 작성해 주세요."
+            )
+        else:
+            # Fallback: No Context (Generic Mode)
+            user_prompt = f"작성자({author_name})가 10년 뒤의 자신이나 가족에게 남길 메시지를 쓸 수 있도록, 깊이 있는 질문을 하나만 던져주세요."
+
+        # 2. System Prompt Engineering (Antigravity Protocol)
+        system_prompt = (
+            "당신은 사용자가 10년 뒤의 미래에 열어볼 '타임캡슐'에 넣을 메시지를 쓰도록 돕는 **회고록 가이드**입니다.\n"
+            "목표: 사용자가 현재의 행복, 사랑, 다짐을 미래로 보낼 수 있도록 유도하는 질문을 1개 생성하세요.\n\n"
+            "🚫 **Strict Constraints (절대 금지사항):**\n"
+            "1. **없는 인물 창조 금지**: 입력된 '함께 있는 사람' 외의 인물(이모, 삼촌, 할머니 등)을 절대 언급하지 마세요. 모르면 '이 분', '함께 있는 사람'이라고 지칭하세요.\n"
+            "2. **미래 시점 혼동 금지**: '10년 후에 나를 만나면' 같은 기괴한 표현 금지. '10년 뒤 이 글을 읽을 때~'가 맞습니다.\n"
+            "3. **평가 금지**: '성품이 어떤가요?' 대신 '어떤 점이 좋았나요?'처럼 구체적인 경험/감정을 물어보세요.\n"
+            "4. **언어**: 무조건 한국어(Korean). 정중하고 따뜻한 어조(해요체).\n"
+        )
+
+        try:
+            if provider == "gemini":
+                from services.gemini import gemini_service
+                response = gemini_service.chat_query(system_prompt, user_prompt, temperature=0.8)
+                return response.strip('" ')
+            else:
+                # Local Llama (Ollama)
+                from services.ollama_manager import ollama_manager
+                import ollama
+                
+                if not ollama_manager.ensure_running():
+                    return "미래의 나에게 어떤 말을 남기고 싶으신가요? (AI 연결 실패)"
+
+                response = ollama.chat(
+                    model='llama3.1', 
+                    messages=[
+                        {'role': 'system', 'content': system_prompt},
+                        {'role': 'user', 'content': user_prompt}
+                    ],
+                    options={"temperature": 0.8}
+                )
+                return response['message']['content'].strip('" ')
+
+        except Exception as e:
+            logger.error(f"Failed to generate capsule question: {e}")
+            return "1년 뒤의 나에게 어떤 이야기를 들려주고 싶으신가요?" 
+
+    def generate_interview_question(self, context: dict) -> str:
+        """
+        Generates a context-aware interview question for a photo.
+        Context keys: date, location, people (list), caption (optional)
+        """
+        provider = config.get("ai_provider")
+        
+        # Build Context String (Injection)
+        # Build Context String (Injection)
+        location = context.get('location', '알 수 없는 장소')
+        date_str = context.get('date', '어느 날')
+        # people = ", ".join(context.get('people', [])) or "혼자" # Disabled by User Request
+        caption = context.get('caption', '사진 내용 없음')
+        
+        system_prompt = (
+            "당신은 따뜻한 호기심을 가진 **가족 전기 작가(Family Biographer)**입니다. "
+            "사용자가 이 사진에 담긴 비하인드 스토리를 기록하도록 유도해야 합니다. "
+            "단순히 '이건 뭔가요?'라고 묻지 말고, 제공된 정보(날짜, 장소, 상황)를 활용해 구체적인 디테일을 콕 집어서 질문하세요.\n\n"
+            "지침:\n"
+            "1. 언어: **무조건 한국어(Korean)**. 말투는 다정하고 예의 바르게(해요체).\n"
+            "2. 질문 방식: '그날 ~할 때 어떤 기분이 드셨나요?' 혹은 '~ 장소의 분위기는 어땠나요?' 처럼 구체적으로.\n"
+            "3. **🚫 인물 이름 사용 금지**: 사진 속 인물의 구체적인 이름(예: Dad, 누구님 등)을 절대 언급하지 마세요. 대신 '함께한 분들', '가족분들', '아이' 등으로 지칭하세요.\n"
+            "4. 입력 정보 활용: 제공된 날짜(계절), 장소, 사진 설명을 질문에 녹여내세요.\n"
+            "5. 길이: 한 문장 또는 두 문장으로 짧게.\n"
+        )
+        
+        user_prompt = (
+            f"다음은 사진에 대한 정보입니다:\n"
+            f"- Date: {date_str}\n"
+            f"- Location: {location}\n"
+            f"- Visual Description: {caption}\n\n"
+            "이 정보를 바탕으로 사용자가 추억을 떠올릴 수 있는 감성적인 질문을 하나만 만들어주세요. (인물 이름 언급 금지)"
+        )
+
+        logger.info(f"Generating Interview Question via {provider} with Context: {date_str}, {location}")
+        
+        try:
+            if provider == "gemini":
+                from services.gemini import gemini_service
+                response = gemini_service.chat_query(system_prompt, user_prompt, temperature=0.75)
+                return response.strip('" ')
+            else:
+                # Local Llama
+                from services.ollama_manager import ollama_manager
+                import ollama
+                
+                if not ollama_manager.ensure_running():
+                    return None 
+
+                response = ollama.chat(
+                    model='llama3.1',
+                    messages=[
+                        {'role': 'system', 'content': system_prompt},
+                        {'role': 'user', 'content': user_prompt}
+                    ],
+                    options={"temperature": 0.75}
+                )
+                return response['message']['content'].strip('" ')
+
+        except Exception as e:
+            logger.error(f"Failed to generate interview question: {e}")
+            return None
+
+# Singleton
+ai_service = AIService()

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results - The Decade Journey{% endblock %}
+
+{% block content %}
+<section class="search-results-section" style="padding: 6rem 2rem; min-height: 80vh;">
+    <div class="header-section" style="text-align: center; margin-bottom: 3rem;">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Search Results</h2>
+        <p style="font-size: 1.2rem; color: #666;">
+            Found <strong>{{ total_count }}</strong> memories for "{{ query }}"
+        </p>
+    </div>
+
+    {% if events %}
+    <div class="masonry-grid">
+        {% for event in events %}
+        <div class="masonry-item">
+            <div style="position: relative; overflow: hidden; border-radius: 8px;">
+                {% if event.media_type == 'video' %}
+                {% if event.thumbnail_url %}
+                <img src="{{ event.thumbnail_url }}" alt="{{ event.title }}" class="gallery-image">
+                {% else %}
+                <video src="{{ event.image_url }}#t=0.1" preload="metadata" class="gallery-image"></video>
+                {% endif %}
+                <div class="video-play-icon" style="font-size: 2rem;">▶</div>
+                {% else %}
+                <img src="{{ event.image_url }}" alt="{{ event.title }}" class="gallery-image">
+                {% endif %}
+
+                <a href="/#timeline" class="gallery-overlay" style="text-decoration: none;">
+                    <span class="gallery-date">{{ event.date }}</span>
+                    <span class="gallery-title">{{ event.title or "Untitled Memory" }}</span>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-results" style="text-align: center; margin-top: 4rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
+        <p style="font-size: 1.2rem; color: #888;">No memories found matching your search.</p>
+        <a href="/" class="cta-button" style="margin-top: 2rem; display: inline-block;">Return Home</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

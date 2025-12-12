@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="people-container">
+    <h1 class="page-title">People</h1>
+
+    <div class="people-grid">
+        {% for person in people %}
+        <a href="/people/{{ person.id }}" class="person-card">
+            <div class="person-avatar">
+                {% if person.cover_photo %}
+                <img src="{{ person.cover_photo }}" alt="{{ person.name }}" loading="lazy">
+                {% else %}
+                <div class="avatar-placeholder">?</div>
+                {% endif %}
+            </div>
+            <div class="person-info">
+                <h3>{{ person.name }}</h3>
+                <span class="face-count">{{ person.faces|length }} photos</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .people-container {
+        max-width: 1200px;
+        margin: 4rem auto;
+        padding: 20px;
+    }
+
+    .people-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 20px;
+    }
+
+    .person-card {
+        text-decoration: none;
+        color: var(--text-color);
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .person-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .person-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        background: #f0f0f0;
+    }
+
+    .person-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        color: #ccc;
+    }
+
+    .person-info h3 {
+        margin: 5px 0 0;
+        font-size: 1.1rem;
+    }
+
+    .face-count {
+        font-size: 0.8rem;
+        color: #888;
+    }
+</style>
+{% endblock %}

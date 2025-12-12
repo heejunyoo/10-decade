@@ -1,0 +1,56 @@
+<div class="interviewer-card" id="daily-memory-widget" style="animation: fade-in 0.5s ease-out;">
+    <div class="interviewer-layout">
+
+        <!-- Photo Side -->
+        <div class="interviewer-image-col">
+            <img src="{{ event.image_url }}" alt="Memory Photo" class="gallery-image">
+            <div class="interviewer-expand-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+            </div>
+            <div class="interviewer-date-badge">
+                {{ event.date }}
+            </div>
+        </div>
+
+        <!-- Interaction Side -->
+        <div class="interviewer-content-col">
+            <!-- Background Icon Decoration -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="interviewer-bg-icon" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+
+            <h3 class="interviewer-header">
+                ✨ Daily AI Interviewer
+            </h3>
+
+            <p class="interviewer-question">
+                "{{ interaction.question }}"
+            </p>
+
+            {% if interaction.is_answered %}
+            <div class="interviewer-answer-box">
+                "{{ interaction.answer }}"
+            </div>
+            <div class="interviewer-meta">
+                Recorded on {{ interaction.answered_at.strftime('%Y-%m-%d') }}
+            </div>
+            {% else %}
+            <form action="/memories/{{ interaction.id }}/answer" method="post" class="interviewer-form">
+                <textarea name="answer" class="interviewer-textarea" rows="3"
+                    placeholder="Type your memory here... (e.g., 'We were celebrating dad's birthday...')"></textarea>
+
+                <div class="interviewer-submit-wrapper">
+                    <button type="submit" class="interviewer-submit-btn">
+                        Save Memory
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>

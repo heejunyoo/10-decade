@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="person-detail-container">
+    <div class="person-header">
+        <div class="person-avatar-large">
+            {% if person.cover_photo %}
+            <img src="{{ person.cover_photo }}" alt="{{ person.name }}">
+            {% else %}
+            <div class="avatar-placeholder">?</div>
+            {% endif %}
+        </div>
+
+        <form action="/people/{{ person.id }}/update" method="post" class="name-edit-form">
+            <input type="text" name="name" value="{{ person.name }}" class="name-input">
+            <button type="submit" class="save-btn">Save</button>
+        </form>
+
+        <div class="controls"
+            style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <label class="toggle-switch">
+                <input type="checkbox" id="toggleFaces">
+                <span class="slider round"></span>
+                <span class="label-text">Show Faces</span>
+            </label>
+
+            <button id="deletePersonBtn" class="delete-person-btn" data-id="{{ person.id }}">Delete Person</button>
+        </div>
+    </div>
+
+    <div class="person-timeline-grid">
+        {% for event in events %}
+        <a href="/#timeline-item-{{ event.id }}" class="timeline-thumb" data-event-id="{{ event.id }}">
+            <img src="{{ event.thumbnail_url if event.thumbnail_url else event.image_url }}" loading="lazy"
+                id="img-{{ event.id }}">
+            <!-- Face Overlay Box -->
+            <div class="face-box" id="face-{{ event.id }}"></div>
+            <span class="thumb-date">{{ event.date }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .person-detail-container {
+        max-width: 1200px;
+        margin: 8rem auto;
+        padding: 20px;
+    }
+
+    .person-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 3rem;
+        gap: 1rem;
+    }
+
+    .person-avatar-large {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .person-avatar-large img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .name-input {
+        font-size: 1.5rem;
+        text-align: center;
+        border: none;
+        border-bottom: 2px solid #eee;
+        padding: 5px;
+        font-family: var(--font-heading);
+        background: transparent;
+    }
+
+    .name-input:focus {
+        outline: none;
+        border-bottom-color: var(--accent-color);
+    }
+
+    .save-btn {
+        display: none;
+        /* Only show on focus/change ideally, but for now showing always or hidden styled */
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+
+    .delete-person-btn {
+        background: #ff4444;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: background 0.3s;
+    }
+
+    .delete-person-btn:hover {
+        background: #cc0000;
+    }
+
+    .name-edit-form:focus-within .save-btn {
+        display: inline-block;
+    }
+
+    .person-timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+    }
+
+    .timeline-thumb {
+        position: relative;
+        aspect-ratio: 1;
+        overflow: hidden;
+        border-radius: 8px;
+        display: block;
+    }
+
+    .timeline-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s;
+    }
+
+    .timeline-thumb:hover img {
+        transform: scale(1.05);
+    }
+
+    .thumb-date {
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .face-box {
+        position: absolute;
+        border: 3px solid #ff0055;
+        box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
+        border-radius: 4px;
+        pointer-events: none;
+        display: none;
+        /* Hidden by default, shown via JS */
+        z-index: 10;
+    }
+
+    .timeline-thumb:hover .face-box,
+    .person-timeline-grid.show-faces-active .face-box {
+        display: block;
+    }
+
+    /* Toggle Switch Styles */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 140px;
+        height: 28px;
+        line-height: 28px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: .4s;
+        transition: .4s;
+        border-radius: 34px;
+        width: 50px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        -webkit-transition: .4s;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked+.slider {
+        background-color: var(--accent-color);
+    }
+
+    input:checked+.slider:before {
+        -webkit-transform: translateX(22px);
+        -ms-transform: translateX(22px);
+        transform: translateX(22px);
+    }
+
+    .label-text {
+        margin-left: 60px;
+        font-size: 0.9rem;
+        color: #555;
+        vertical-align: top;
+    }
+</style>
+
+<script>
+    const faceMap = {{ face_map | tojson | safe }};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const thumbs = document.querySelectorAll('.timeline-thumb');
+
+        thumbs.forEach(thumb => {
+            const eventId = thumb.getAttribute('data-event-id');
+            const locationRaw = faceMap[eventId];
+
+            if (!locationRaw) return;
+
+            // face_recognition: (top, right, bottom, left)
+            const location = JSON.parse(locationRaw);
+            const [top, right, bottom, left] = location;
+
+            const img = thumb.querySelector('img');
+            const box = thumb.querySelector('.face-box');
+
+            const updateBox = () => {
+                const natW = img.naturalWidth;
+                const natH = img.naturalHeight;
+                const clientW = img.clientWidth;
+                const clientH = img.clientHeight;
+
+                if (natW === 0 || natH === 0) return;
+
+                // Simulate object-fit: cover logic
+                const natRatio = natW / natH;
+                const clientRatio = clientW / clientH;
+
+                let renderW, renderH, offsetX, offsetY;
+
+                if (clientRatio > natRatio) {
+                    // Image is wider relative to container -> Width matches, Height is cropped
+                    renderW = clientW;
+                    renderH = clientW / natRatio;
+                    offsetX = 0;
+                    offsetY = (clientH - renderH) / 2;
+                } else {
+                    // Image is taller -> Height matches, Width is cropped
+                    renderH = clientH;
+                    renderW = clientH * natRatio;
+                    offsetY = 0;
+                    offsetX = (clientW - renderW) / 2;
+                }
+
+                // Scale
+                const scaleX = renderW / natW;
+                const scaleY = renderH / natH; // Should be same as scaleX
+
+                const boxTop = (top * scaleY) + offsetY;
+                const boxLeft = (left * scaleX) + offsetX;
+                const boxW = (right - left) * scaleX;
+                const boxH = (bottom - top) * scaleY;
+
+                box.style.top = `${boxTop}px`;
+                box.style.left = `${boxLeft}px`;
+                box.style.width = `${boxW}px`;
+                box.style.height = `${boxH}px`;
+            };
+
+            if (img.complete) {
+                updateBox();
+            } else {
+                img.onload = updateBox;
+            }
+
+            // Re-calc on resize
+            window.addEventListener('resize', updateBox);
+        });
+
+        // Toggle Logic
+        const toggle = document.getElementById('toggleFaces');
+        const grid = document.querySelector('.person-timeline-grid');
+
+        if (toggle && grid) {
+            toggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    grid.classList.add('show-faces-active');
+                } else {
+                    grid.classList.remove('show-faces-active');
+                }
+            });
+        }
+
+        // Delete Person Logic
+        const deleteBtn = document.getElementById('deletePersonBtn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+                if (confirm('Are you sure you want to delete this person? All face tags associated with this person will be removed. The original photos will NOT be deleted.')) {
+                    const personId = deleteBtn.getAttribute('data-id');
+                    try {
+                        const response = await fetch(`/people/${personId}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.ok) {
+                            alert('Person deleted successfully.');
+                            window.location.href = '/people/';
+                        } else {
+                            alert('Failed to delete person.');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('An error occurred.');
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

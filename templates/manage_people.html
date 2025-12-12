@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Manage People - The Decade Journey{% endblock %}
+
+{% block content %}
+<div class="manage-container">
+    <div class="manage-header">
+        <h2>👥 Manage People</h2>
+        <div class="header-actions">
+            <a href="/manage/people/unknown" class="btn-primary">🧩 Merge Unknown Faces</a>
+            <a href="/manage" class="btn-secondary">⬅ Back to Memories</a>
+        </div>
+    </div>
+
+    <div class="manage-table-wrapper">
+        <table class="manage-table">
+            <thead>
+                <tr>
+                    <th>Avatar</th>
+                    <th>Name (Edit)</th>
+                    <th>Face Count</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for person in people %}
+                <tr data-person-id="{{ person.id }}">
+                    <td class="thumb-col">
+                        <div class="manage-thumb-box round">
+                            {% if person.cover_photo %}
+                            <img src="{{ person.cover_photo }}" loading="lazy">
+                            {% else %}
+                            <span>?</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="details-col">
+                        <form action="/people/{{ person.id }}/update" method="post" class="inline-edit-form">
+                            <input type="text" name="name" value="{{ person.name }}" class="edit-input">
+                            <button type="submit" class="btn-save-sm" title="Save">💾</button>
+                        </form>
+                    </td>
+                    <td class="id-col">{{ person.faces|length }} references</td>
+                    <td class="actions-col">
+                        <a href="/people/{{ person.id }}" class="btn-view-sm" title="View Gallery">👁️ View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .manage-container {
+        max-width: 1000px;
+        margin: 8rem auto;
+        padding: 0 1rem;
+    }
+
+    .manage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-primary {
+        text-decoration: none;
+        background: #4f46e5;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .btn-primary:hover {
+        background: #4338ca;
+    }
+
+    .manage-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .manage-table th,
+    .manage-table td {
+        padding: 1.2rem;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .avatar-small {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #999;
+    }
+
+    .avatar-small img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .inline-edit-form {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .edit-input {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-family: inherit;
+    }
+
+    .btn-save-sm {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+
+    .btn-save-sm:hover {
+        opacity: 1;
+    }
+
+    .btn-view-sm {
+        text-decoration: none;
+        background: #f8f9fa;
+        padding: 0.4rem 0.8rem;
+        border-radius: 4px;
+        color: #333;
+        font-size: 0.9rem;
+        border: 1px solid #ddd;
+    }
+</style>
+{% endblock %}

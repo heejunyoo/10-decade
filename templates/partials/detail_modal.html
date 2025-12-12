@@ -1,0 +1,249 @@
+<!-- Memory Detail Modal -->
+<div id="detailModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <button class="close-modal" onclick="closeModal()">&times;</button>
+
+        <div class="modal-body">
+            <!-- Media Side -->
+            <div class="modal-media" id="modalMedia">
+                <!-- JS injects img or video here -->
+                <img id="detailImage" src="" alt="">
+            </div>
+
+            <!-- Info Side -->
+            <div class="modal-info">
+                <div class="info-header">
+                    <h2 id="detailDate"></h2>
+                    <span id="detailLocation" class="location-badge"></span>
+                </div>
+
+                <div class="info-section">
+                    <p id="detailStory" class="story-text"></p>
+                    <p id="detailAuthor" class="story-author"></p>
+                    <p id="detailSummary" class="ai-summary"></p>
+                </div>
+
+                <div class="info-meta">
+                    <div class="meta-item" id="detailPeopleWrapper" style="display: none;">
+                        <span class="meta-label">People</span>
+                        <div id="detailPeople" class="tags-container"></div>
+                    </div>
+                    <div class="meta-item" id="detailWeatherWrapper" style="display: none;">
+                        <span class="meta-label">Weather</span>
+                        <span id="detailWeather"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(5px);
+        animation: fadeIn 0.3s ease;
+    }
+
+    .modal-content {
+        background: white;
+        background: #1a1a1a;
+        color: #f0f0f0;
+        width: 90%;
+        max-width: 1100px;
+        height: 85vh;
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .close-modal {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 2rem;
+        cursor: pointer;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+    .close-modal:hover {
+        background: rgba(0, 0, 0, 0.8);
+    }
+
+    .modal-body {
+        display: flex;
+        height: 100%;
+    }
+
+    .modal-media {
+        flex: 3;
+        background: black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .modal-media img,
+    .modal-media video {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .modal-info {
+        flex: 2;
+        padding: 40px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        border-left: 1px solid #333;
+    }
+
+    .info-header h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2rem;
+        margin: 0 0 10px 0;
+        color: var(--primary-color);
+    }
+
+    .location-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.9rem;
+        color: #888;
+    }
+
+    .location-badge::before {
+        content: '📍';
+    }
+
+    .location-badge.has-coords {
+        color: var(--primary-color) !important;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        transition: all 0.2s;
+    }
+
+    .location-badge.has-coords:hover {
+        transform: scale(1.05);
+        color: var(--accent-color) !important;
+    }
+
+    .story-text {
+        font-family: 'Noto Serif KR', serif;
+        font-size: 1.15rem;
+        line-height: 1.8;
+        color: #e0e0e0;
+        white-space: pre-wrap;
+    }
+
+    .story-author {
+        font-style: italic;
+        color: #888;
+        text-align: right;
+        margin-top: -10px;
+        font-size: 0.9rem;
+    }
+
+    .ai-summary {
+        font-size: 0.9rem;
+        color: #666;
+        border-top: 1px solid #333;
+        padding-top: 15px;
+        font-style: italic;
+    }
+
+    .info-meta {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .meta-label {
+        display: block;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #555;
+        margin-bottom: 5px;
+        letter-spacing: 1px;
+    }
+
+    .tags-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .people-tag {
+        background: #333;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        color: #ddd;
+    }
+
+    @media (max-width: 768px) {
+        .modal-content {
+            height: 95vh;
+            width: 95%;
+            overflow-y: auto;
+            /* Allow scrolling */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-body {
+            flex-direction: column;
+            overflow-y: visible;
+            /* Let content grow */
+            height: auto;
+        }
+
+        .modal-media {
+            flex: none;
+            /* Don't force flex grow */
+            width: 100%;
+            height: auto;
+            max-height: 50vh;
+            /* Limit media height */
+            background: black;
+            min-height: 250px;
+        }
+
+        .modal-info {
+            flex: 1;
+            padding: 20px;
+            overflow-y: visible;
+            /* Scroll is on modal-content */
+            border-left: none;
+            /* Stacked layout */
+        }
+    }
+</style>

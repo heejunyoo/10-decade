@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="{{ get_config('theme') }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Decade">
+    <link rel="manifest" href="/static/manifest.json">
+    <title>{% block title %}The Decade Journey{% endblock %}</title>
+    {% block head %}{% endblock %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&family=Song+Myung&family=Gowun+Batang:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enables dark mode toggling via 'dark' class on HTML tag
+            theme: {
+                extend: {
+                    colors: {
+                        // Inherit from legacy CSS variables for dynamic theming
+                        primary: 'var(--primary-color, #1a2332)',
+                        secondary: 'var(--secondary-color, #f0f0f0)',
+                        accent: 'var(--accent-color, #d4af37)',
+                        bg: {
+                            main: 'var(--bg-color, #ffffff)',
+                            card: 'var(--card-bg, #ffffff)',
+                        }
+                    },
+                    fontFamily: {
+                        // Inherit legacy font stack
+                        serif: ['"Playfair Display"', '"Song Myung"', 'serif'],
+                        sans: ['"Lato"', '"Gowun Batang"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Leaflet & MarkerCluster -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <link rel="stylesheet" href="/static/style.css?v=8">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body x-data="getAppData()" @scroll.window="showScrollTop = (window.pageYOffset > 100)"
+    @open-delete-modal.window="handleDeleteRequest($event.detail.id)">
+
+    <script>
+        // Global helper to trigger delete modal from anywhere (vanilla JS)
+        function confirmDelete(id) {
+            console.log('🗑️ Requesting delete for ID:', id);
+            window.dispatchEvent(new CustomEvent('open-delete-modal', { detail: { id: id } }));
+        }
+
+        function getAppData() {
+            return {
+                mobileMenuOpen: false,
+                deleteModalOpen: false,
+                deleteTargetId: null,
+                showScrollTop: false,
+
+                // Listen for global event
+                init() {
+                    // No-op, we use @open-delete-modal.window
+                },
+
+                handleDeleteRequest(id) {
+                    console.log('✅ Alpine received delete request for:', id);
+                    this.deleteTargetId = id;
+                    this.deleteModalOpen = true;
+                },
+
+                async performDelete() {
+                    if (!this.deleteTargetId) return;
+                    console.log('🚀 Sending DELETE request for:', this.deleteTargetId);
+
+                    try {
+                        const response = await fetch('/delete/' + this.deleteTargetId, {
+                            method: 'POST'
+                        });
+
+                        if (response.ok) {
+                            console.log('✅ Delete successful');
+                            this.closeDeleteModal();
+                            // Remove the item from DOM
+                            let el = document.querySelector(`tr[data-id='${this.deleteTargetId}']`); // Manage Table
+                            if (!el) el = document.querySelector(`.timeline-item button[onclick*='${this.deleteTargetId}']`)?.closest('.timeline-item'); // Timeline
+
+                            if (el) {
+                                el.style.transition = 'opacity 0.5s';
+                                el.style.opacity = '0';
+                                setTimeout(() => el.remove(), 500);
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            console.error('❌ Server failed:', response.status);
+                            alert('Failed to delete. Server returned ' + response.status);
+                        }
+                    } catch (error) {
+                        console.error('❌ Network error:', error);
+                        alert('Error deleting memory: ' + error);
+                    }
+                },
+
+                closeDeleteModal() {
+                    this.deleteModalOpen = false;
+                    this.deleteTargetId = null;
+                }
+            }
+        }
+    </script>
+
+    <header class="main-header" style="padding-top: calc(1rem + env(safe-area-inset-top));">
+        <nav>
+            <div class="logo"><a href="/">The Decade Journey</a></div>
+
+            <button class="hamburger" @click="mobileMenuOpen = !mobileMenuOpen" :class="{ 'active': mobileMenuOpen }"
+                aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <ul class="nav-links" :class="{ 'active': mobileMenuOpen }">
+                <!-- Search Item -->
+                <li class="search-item">
+                    <form action="/search" method="get" class="nav-search-form">
+                        <input type="text" name="q" placeholder="Search..." required>
+                        <button type="submit">🔍</button>
+                    </form>
+                </li>
+
+                <li><a href="/archive">Archive</a></li>
+                <li><a href="/highlights">Highlights</a></li>
+                <li><a href="/cinema">Cinema</a></li>
+
+                <!-- User Section -->
+                {% if request.cookies.get("decade_journey_profile") %}
+                <li>
+                    <a href="/select-profile" class="nav-profile" title="Switch Profile">
+                        <span class="profile-icon">👤</span>
+                        <span class="profile-name">{{ request.cookies.get("decade_journey_profile") }}</span>
+                    </a>
+                </li>
+                <li><a href="/manage" style="font-size: 0.9rem;">⚙️ Manage</a></li>
+                {% else %}
+                <li><a href="/select-profile">Select Profile</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <main style="padding-top: env(safe-area-inset-top);">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>Celebrating 10 Years of Love & Family</p>
+    </footer>
+
+    <!-- Custom Delete Confirmation Modal (Alpine) -->
+    <!-- Custom Delete Confirmation Modal (Alpine) -->
+    <div x-show="deleteModalOpen" x-transition.opacity class="custom-modal" x-cloak>
+        <div class="modal-content" @click.away="closeDeleteModal()">
+            <h3>⚠️ Delete Memory?</h3>
+            <p>Are you sure you want to delete this memory?</p>
+            <p class="warning-text">This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button @click="closeDeleteModal()" class="modal-btn cancel">Cancel</button>
+                <button id="confirmDeleteBtn" class="modal-btn delete" @click="performDelete()">
+                    Yes, Delete
+                </button>
+            </div>
+            <!-- Debug state -->
+            <div style="display:none;" x-effect="console.log('👀 Modal State:', deleteModalOpen)"></div>
+        </div>
+    </div>
+
+    <!-- Universal Action FAB -->
+    {% include 'partials/fab_widget.html' %}
+
+    <!-- Scroll to Top -->
+    <button id="scrollToTopBtn" x-show="showScrollTop" x-transition
+        @click="window.scrollTo({top: 0, behavior: 'smooth'})" title="Go to top">⬆️</button>
+
+    <!-- Detail Modal (Global) -->
+    {% include 'partials/detail_modal.html' %}
+    {% include 'partials/stack_modal.html' %}
+    {% include 'components/map_modal.html' %}
+
+    <!-- We keep script.js for now for Lightbox logic -->
+    <script src="/static/script.js?v=6"></script>
+</body>
+
+</html>

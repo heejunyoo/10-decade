@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="cinema-container">
+    <div class="cinema-controls-top">
+        <a href="/" class="back-link">← Back to Timeline</a>
+        <h2 class="cinema-title">Cinema Mode</h2>
+    </div>
+
+    <!-- Start Overlay for Audio Policy -->
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-content">
+            <h1>🎬 Memory Cinema</h1>
+            <p>Turn on sound for the best experience</p>
+            <button class="start-btn" id="startBtn">Start Journey</button>
+        </div>
+    </div>
+
+    <audio id="bgMusic" loop></audio>
+
+    <div class="slideshow-wrapper">
+        {% if events %}
+        <div class="slideshow-container" id="slideshowContainer">
+            {% for event in events %}
+            <div class="slide {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
+                <img src="{{ event.image_url }}" alt="{{ event.title }}">
+                <div class="slide-caption">
+                    <h3>{{ event.date }}</h3>
+                    {% if event.user_memory %}
+                    <p>“{{ event.user_memory }}”</p>
+                    {% if event.user_memory_author %}
+                    <span class="memory-author">- {{ event.user_memory_author }} -</span>
+                    {% endif %}
+                    {% elif event.summary %}
+                    {# Fallback (shouldn't happen with new filter but safe to keep) #}
+                    <p>“{{ event.summary }}”</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- End Card Slide -->
+            <div class="slide final-slide" data-index="final">
+                <div class="final-content">
+                    <div class="icon">✨</div>
+                    <h2>이야기의 마지막 페이지입니다</h2>
+                    <p>아직 기록되지 않은 수많은 추억들이 기다리고 있습니다.<br>AI 인터뷰를 통해 당신의 이야기를 채워주세요.</p>
+                    <a href="/" class="play-btn">이야기 기록하러 가기</a>
+                </div>
+            </div>
+        </div>
+
+        <button class="nav-btn prev-btn" id="prevBtn">❮</button>
+        <button class="nav-btn next-btn" id="nextBtn">❯</button>
+        {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-content">
+                <h2>🎬 아직 기록된 추억이 없습니다</h2>
+                <p>AI 인터뷰를 통해 여러분의 소중한 이야기를 들려주세요.<br>기록된 이야기가 이곳에서 영화처럼 펼쳐집니다.</p>
+                <a href="/" class="cta-btn">AI 인터뷰 하러 가기</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="cinema-controls-bottom">
+        <button id="playPauseBtn" class="control-btn">⏸ Pause</button>
+        <button id="fullscreenBtn" class="control-btn">⛶ Fullscreen</button>
+    </div>
+</div>
+
+<style>
+    /* Cinema Mode Specific Styles */
+    .cinema-container {
+        height: 90vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background: #000;
+        color: white;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    .cinema-controls-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        z-index: 1001;
+    }
+
+    .back-link {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 1.1rem;
+    }
+
+    .back-link:hover {
+        color: white;
+    }
+
+    .cinema-title {
+        color: white;
+        margin: 0;
+        font-family: var(--font-heading);
+    }
+
+    .slideshow-wrapper {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .slideshow-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    .slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transition: opacity 1s ease-in-out;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .slide.active {
+        opacity: 1;
+        z-index: 1;
+    }
+
+    .slide img {
+        max-width: 100%;
+        max-height: 85vh;
+        object-fit: contain;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+        /* Ken Burns Effect */
+        animation: kenBurns 20s infinite alternate;
+    }
+
+    @keyframes kenBurns {
+        0% {
+            transform: scale(1.0);
+        }
+
+        100% {
+            transform: scale(1.1);
+        }
+    }
+
+    .slide-caption {
+        position: absolute;
+        bottom: 60px;
+        background: rgba(0, 0, 0, 0.5);
+        /* More transparent */
+        padding: 20px 40px;
+        border-radius: 40px;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        max-width: 80%;
+        transition: opacity 0.5s;
+    }
+
+    .slide-caption h3 {
+        margin: 0 0 10px 0;
+        font-family: var(--font-heading);
+        font-size: 2rem;
+        color: #fff;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .slide-caption p {
+        margin: 0;
+        color: #f0f0f0;
+        font-size: 1.2rem;
+        font-family: var(--font-korean);
+        /* Emotional Serif */
+        line-height: 1.5;
+        font-weight: 300;
+    }
+
+    .slide-caption {
+        position: absolute;
+        bottom: 40px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 15px 30px;
+        border-radius: 30px;
+        text-align: center;
+        backdrop-filter: blur(5px);
+    }
+
+    .slide-caption h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #fff;
+    }
+
+    .slide-caption p {
+        margin: 5px 0 0;
+        color: #ddd;
+    }
+
+    .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: white;
+        font-size: 2rem;
+        padding: 20px;
+        cursor: pointer;
+        z-index: 1002;
+        border-radius: 50%;
+        transition: background 0.3s;
+    }
+
+    .nav-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .prev-btn {
+        left: 20px;
+    }
+
+    .next-btn {
+        right: 20px;
+    }
+
+    .cinema-controls-bottom {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+        z-index: 1001;
+    }
+
+    .control-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 10px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .control-btn:hover {
+        background: white;
+        color: black;
+    }
+
+    /* Start Overlay */
+    .start-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    .start-content h1 {
+        font-family: var(--font-heading);
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+    }
+
+    .start-content p {
+        font-size: 1.2rem;
+        color: #ccc;
+        margin-bottom: 2rem;
+    }
+
+    .start-btn {
+        background: white;
+        color: black;
+        border: none;
+        padding: 15px 40px;
+        font-size: 1.2rem;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .start-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* Empty State */
+    .empty-state {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        width: 100%;
+        text-align: center;
+    }
+
+    .empty-content h2 {
+        font-family: var(--font-heading);
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: var(--primary-color);
+    }
+
+    .empty-content p {
+        font-size: 1.2rem;
+        color: #ccc;
+        margin-bottom: 30px;
+        line-height: 1.6;
+    }
+
+    .cta-btn {
+        display: inline-block;
+        background: white;
+        color: black;
+        padding: 15px 30px;
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: transform 0.2s;
+    }
+
+    .cta-btn:hover {
+        transform: scale(1.05);
+        background: #f0f0f0;
+    }
+
+    .memory-author {
+        display: block;
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-style: italic;
+    }
+
+    /* Final Slide */
+    .final-slide {
+        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .final-content {
+        text-align: center;
+        animation: fadeIn 1s ease-out;
+    }
+
+    .final-content .icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        opacity: 0.8;
+    }
+
+    .final-content h2 {
+        font-family: var(--font-heading);
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: var(--primary-color);
+    }
+
+    .final-content p {
+        font-size: 1.3rem;
+        color: #ddd;
+        margin-bottom: 40px;
+        line-height: 1.8;
+        font-family: var(--font-korean);
+        font-weight: 300;
+    }
+
+    .play-btn {
+        display: inline-block;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: white;
+        padding: 15px 40px;
+        border-radius: 30px;
+        text-decoration: none;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+    }
+
+    .play-btn:hover {
+        background: white;
+        color: black;
+        border-color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const startOverlay = document.getElementById('startOverlay');
+        const startBtn = document.getElementById('startBtn');
+        const bgMusic = document.getElementById('bgMusic');
+        const musicToggleBtn = document.createElement('button');
+
+        // Add Music Toggle Button
+        musicToggleBtn.id = 'musicToggleBtn';
+        musicToggleBtn.className = 'control-btn';
+        musicToggleBtn.textContent = '🔊 Music On';
+        document.querySelector('.cinema-controls-bottom').insertBefore(musicToggleBtn, fullscreenBtn);
+
+        const musicPlaylist = [
+            "https://cdn.pixabay.com/download/audio/2025/10/27/audio_499cc4b861.mp3?filename=romantic-wedding-love-music-412708.mp3",
+            "https://cdn.pixabay.com/download/audio/2025/05/07/audio_b245e46768.mp3?filename=romantic-wedding-background-music-337990.mp3"
+        ];
+
+        let currentIndex = 0;
+        let isPlaying = false; // Start paused until user clicks Start
+        let slideInterval;
+        const intervalTime = 5000; // 5 seconds
+
+        function showSlide(index) {
+            if (slides.length === 0) return;
+            slides[currentIndex].classList.remove('active');
+            currentIndex = (index + slides.length) % slides.length;
+            slides[currentIndex].classList.add('active');
+        }
+
+        function nextSlide() {
+            showSlide(currentIndex + 1);
+        }
+
+        function prevSlide() {
+            showSlide(currentIndex - 1);
+        }
+
+        function startSlideshow() {
+            if (slides.length <= 1) return;
+            slideInterval = setInterval(nextSlide, intervalTime);
+            playPauseBtn.textContent = '⏸ Pause';
+            isPlaying = true;
+        }
+
+        function stopSlideshow() {
+            clearInterval(slideInterval);
+            playPauseBtn.textContent = '▶ Play';
+            isPlaying = false;
+        }
+
+        // Start Button Logic
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                startOverlay.style.opacity = '0';
+                setTimeout(() => startOverlay.remove(), 500);
+
+                // Start Music
+                const randomMusic = musicPlaylist[Math.floor(Math.random() * musicPlaylist.length)];
+                bgMusic.src = randomMusic;
+                bgMusic.volume = 0.5;
+                bgMusic.play().catch(e => console.log("Audio play failed", e));
+
+                // Start Slideshow
+                startSlideshow();
+            });
+        }
+
+        // Music Toggle Logic
+        musicToggleBtn.addEventListener('click', () => {
+            if (bgMusic.paused) {
+                bgMusic.play();
+                musicToggleBtn.textContent = '🔊 Music On';
+            } else {
+                bgMusic.pause();
+                musicToggleBtn.textContent = '🔇 Music Off';
+            }
+        });
+
+        // Event Listeners
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                stopSlideshow();
+                nextSlide();
+                if (isPlaying) startSlideshow();
+            });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                stopSlideshow();
+                prevSlide();
+                if (isPlaying) startSlideshow();
+            });
+        }
+
+        if (playPauseBtn) {
+            playPauseBtn.addEventListener('click', () => {
+                if (isPlaying) {
+                    stopSlideshow();
+                } else {
+                    startSlideshow();
+                    nextSlide();
+                }
+            });
+        }
+
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextBtn && nextBtn.click();
+            if (e.key === 'ArrowLeft') prevBtn && prevBtn.click();
+            if (e.key === ' ') {
+                e.preventDefault();
+                playPauseBtn && playPauseBtn.click();
+            }
+        });
+
+        // Start automatically handled by Start Button
+        // startSlideshow();
+    });
+</script>
+{% endblock %}

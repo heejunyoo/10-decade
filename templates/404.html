@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Decade Journey{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[60vh] text-center">
+
+    <div class="text-6xl mb-4">😕</div>
+
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+        404 - Page Not Found
+    </h1>
+
+    <p class="text-lg text-gray-600 dark:text-gray-300 max-w-lg mb-8">
+        The page or resource you are looking for doesn't exist. It might have been moved, deleted, or you found a broken
+        link.
+    </p>
+
+    <div class="flex space-x-4">
+        <a href="/" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">
+            Go Home
+        </a>
+        <a href="javascript:history.back()"
+            class="px-6 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition">
+            Go Back
+        </a>
+    </div>
+
+</div>
+{% endblock %}

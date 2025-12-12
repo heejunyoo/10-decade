@@ -1,0 +1,25 @@
+{% for event in events %}
+{% if event.image_url %}
+<div class="masonry-item" data-date="{{ event.date }}" onclick="openDetailModal({{ event.id }})"
+    style="cursor: pointer;">
+    {% if event.media_type == 'video' %}
+    {% if event.thumbnail_url %}
+    <img src="{{ event.thumbnail_url }}" alt="{{ event.title }}" class="gallery-image" loading="lazy">
+    {% else %}
+    <video class="gallery-image" style="width: 100%;">
+        <source src="{{ event.image_url }}" type="video/mp4">
+    </video>
+    {% endif %}
+    <div class="video-play-icon">▶</div>
+    {% else %}
+    <img src="{{ event.image_url }}" alt="{{ event.title }}" class="gallery-image" loading="lazy">
+    {% endif %}
+    <div class="gallery-overlay">
+        <span class="gallery-date">{{ event.date }}</span>
+        {% if event.title %}
+        <span class="gallery-title">{{ event.title }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endfor %}

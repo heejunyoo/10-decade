@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+<style>
+    #map {
+        height: 80vh;
+        width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        z-index: 1;
+    }
+
+    .map-container {
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .leaflet-popup-content img {
+        width: 100%;
+        max-width: 200px;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+
+    .leaflet-popup-content h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--primary-color);
+    }
+
+    .leaflet-popup-content p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #666;
+    }
+</style>
+
+<div class="map-container">
+    <div class="header-section">
+        <h2>🌍 Our Journey Map</h2>
+        <p>Tracing our footsteps across the world.</p>
+    </div>
+    <div id="map"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize map
+        const map = L.map('map').setView([20, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Fetch events with GPS data
+        fetch('/api/map-events')
+            .then(response => response.json())
+            .then(events => {
+                if (events.length === 0) return;
+
+                // Initialize Marker Cluster Group
+                const markers = L.markerClusterGroup();
+                const markerMap = {}; // Store markers by event ID
+
+                events.forEach(event => {
+                    const marker = L.marker([event.lat, event.lng]);
+
+                    const popupContent = `
+<div>
+    <img src="${event.image_url}" alt="${event.title || 'Memory'}" loading="lazy">
+    <h3>${event.title || 'Memory'}</h3>
+    <p>${event.date}</p>
+    <a href="/?date=${event.date}" target="_blank">View details</a>
+</div>
+`;
+
+                    marker.bindPopup(popupContent);
+                    markers.addLayer(marker);
+                    markerMap[event.id] = marker; // Save reference
+                });
+
+                // Add cluster group to map
+                map.addLayer(markers);
+
+                // Check for focus parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                const focusId = urlParams.get('focus');
+
+                if (focusId && markerMap[focusId]) {
+                    const targetMarker = markerMap[focusId];
+                    // Zoom to marker
+                    map.zoomWithOptions({ animate: true });
+                    markers.zoomToShowLayer(targetMarker, function () {
+                        targetMarker.openPopup();
+                    });
+                } else if (events.length > 0) {
+                    // Fit bounds to show all markers if no focus
+                    map.fitBounds(markers.getBounds().pad(0.1));
+                }
+            })
+            .catch(error => console.error('Error loading map events:', error));
+    });
+</script>
+{% endblock %}

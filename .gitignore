@@ -1,0 +1,58 @@
+# General
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.env
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+eggs/
+.eggs/
+
+# IDEs
+.vscode/
+.idea/
+
+# Database
+*.sqlite3
+instance/
+decade_journey.db
+decade_journey.db-shm
+decade_journey.db-wal
+chroma_db/
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# User Content (IMPORTANT)
+static/uploads/
+!static/uploads/.gitkeep
+backups/
+
+# Heavy AI Models & Cache
+models/
+weights/
+*.onnx
+*.pt
+*.bin
+huggingface/
+torrch/
+
+# Logs
+logs/
+*.log
+
+photos/
+thumbnails/
+*.env
+!.env.example
+
+# Debug & Temp
+debug_*.jpg
+*.bak*
+*.tmp

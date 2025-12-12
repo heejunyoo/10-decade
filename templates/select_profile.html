@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Who's Watching? - The Decade Journey{% endblock %}
+
+{% block content %}
+<style>
+    .profile-selection-container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #141414;
+        /* Netflix Dark */
+        color: white;
+        text-align: center;
+        animation: fadeIn 0.5s;
+    }
+
+    .profile-selection-container h1 {
+        font-size: 3rem;
+        margin-bottom: 3rem;
+        font-weight: 400;
+    }
+
+    .profiles-grid {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .profile-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        group: hover;
+    }
+
+    .avatar-wrapper {
+        width: 150px;
+        height: 150px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        border: 3px solid transparent;
+        transition: border-color 0.2s, transform 0.2s;
+        background: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+    }
+
+    .profile-card:hover .avatar-wrapper {
+        border-color: white;
+        transform: scale(1.05);
+    }
+
+    .profile-name {
+        font-size: 1.2rem;
+        color: #808080;
+        transition: color 0.2s;
+    }
+
+    .profile-card:hover .profile-name {
+        color: white;
+    }
+
+    /* Avatar Colors */
+    .avatar-1 {
+        background: linear-gradient(135deg, #e50914, #b20710);
+    }
+
+    /* Netflix Red */
+    .avatar-2 {
+        background: linear-gradient(135deg, #0071eb, #0d47a1);
+    }
+
+    /* Blue */
+    .avatar-3 {
+        background: linear-gradient(135deg, #f5a623, #d48806);
+    }
+
+    /* Orange */
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(1.1);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+</style>
+
+<div class="profile-selection-container">
+    <div class="profile-welcome-card">
+        <h1>Who's watching?</h1>
+
+        <div class="profiles-grid">
+            <div class="profile-card" onclick="selectProfile('Dad')">
+                <div class="avatar-wrapper avatar-1">👨‍💻</div>
+                <span class="profile-name">Dad</span>
+            </div>
+
+            <div class="profile-card" onclick="selectProfile('Mom')">
+                <div class="avatar-wrapper avatar-2">👩‍🎨</div>
+                <span class="profile-name">Mom</span>
+            </div>
+
+            <div class="profile-card" onclick="selectProfile('Kid')">
+                <div class="avatar-wrapper avatar-3">👶</div>
+                <span class="profile-name">Kid</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="profileForm" action="" method="post" style="display: none;"></form>
+
+<script>
+    function selectProfile(name) {
+        const form = document.getElementById('profileForm');
+        form.action = `/set-profile/${name}`;
+        form.submit();
+    }
+</script>
+{% endblock %}

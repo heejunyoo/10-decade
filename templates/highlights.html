@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="highlights-container">
+    <!-- Hero Section -->
+    <section class="highlight-hero">
+        <div class="video-background-layer"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>{{ (days_together / 365) | int }} Years of Us</h1>
+            <p class="fade-in delay-1 sub-hero">{{ "{:,}".format(days_together) }} Days · {{ total_events }} Memories ·
+                Infinite Love</p>
+
+            <div class="scroll-indicator fade-in delay-2">
+                <span class="scroll-text">Our Journey Begins</span>
+                <div class="arrow">↓</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Timeline Journey -->
+    <div class="timeline-journey">
+        <div class="journey-line"></div>
+        {% for year, items in highlights.items() %}
+
+        <div class="year-chapter reveal">
+            <div class="year-marker">
+                <h2>{{ year }}</h2>
+                <div class="year-stats-pill">
+                    {{ year_stats[year] }} Moments
+                </div>
+            </div>
+
+            <div class="chapter-content">
+                {% for item in items %}
+
+                <!-- Use cycle to alternate layouts if needed, or CSS nth-child -->
+                <div class="moment-card {{ 'reverse' if loop.index % 2 == 0 }} reveal" data-season="{{ item.season }}">
+                    <div class="moment-visual">
+                        <div class="image-frame">
+                            <img src="{{ item.event.thumbnail_url if item.event.media_type == 'video' else item.event.image_url }}"
+                                alt="{{ item.event.title or item.season ~ ' ' ~ year }}" loading="lazy">
+                            <div class="season-badge {{ item.season|lower }}">
+                                {{ item.season }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="moment-connector">
+                        <div class="dot"></div>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="moment-narrative">
+                        <span class="moment-date">{{ item.event.date }}</span>
+                        {% if item.event.title %}
+                        <h3 class="moment-title">{{ item.event.title }}</h3>
+                        {% endif %}
+
+                        {% if item.event.user_memory %}
+                        <p class="moment-caption">"{{ item.event.user_memory }}"</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Finale -->
+        <section class="highlight-footer reveal">
+            <div class="footer-content">
+                <h2>To Be Continued...</h2>
+                <p>우리의 이야기는 계속됩니다.</p>
+                <a href="/" class="btn-primary-outline">전체 타임라인 보기</a>
+            </div>
+        </section>
+    </div>
+</div>
+
+<style>
+    /* --- CSS Variables & Themes --- */
+    :root {
+        --season-spring: #ffb7b2;
+        --season-summer: #89c4f4;
+        --season-autumn: #ff9f43;
+        --season-winter: #aab7b8;
+        --line-color: rgba(0, 0, 0, 0.1);
+    }
+
+    /* --- Global Layout --- */
+    .highlights-container {
+        font-family: var(--font-heading);
+        background-color: #fdfcfa;
+        color: var(--text-color);
+        overflow-x: hidden;
+    }
+
+    /* --- Hero Section (Parallax) --- */
+    .highlight-hero {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        position: relative;
+        background-attachment: fixed;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-image: url('{{ hero_event.image_url if hero_event else "" }}');
+    }
+
+    /* Fallback overlay */
+    .hero-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        color: white;
+    }
+
+    .hero-content h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: 5rem;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        animation: slideUp 1.2s ease-out;
+    }
+
+    .sub-hero {
+        font-family: 'Lato', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 300;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 3rem;
+        opacity: 0.9;
+    }
+
+    .scroll-indicator {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        opacity: 0.8;
+        font-size: 0.9rem;
+    }
+
+    .arrow {
+        font-size: 2rem;
+        animation: bounce 2s infinite;
+    }
+
+    /* --- Timeline Journey (Zig-Zag) --- */
+    .timeline-journey {
+        position: relative;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 4rem 2rem;
+    }
+
+    .journey-line {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--line-color);
+        transform: translateX(-50%);
+        z-index: 0;
+    }
+
+    .year-chapter {
+        margin-bottom: 6rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .year-marker {
+        text-align: center;
+        margin-bottom: 4rem;
+        background: #fdfcfa;
+        /* Mask line */
+        padding: 2rem 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .year-marker h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 4rem;
+        color: var(--primary-color);
+        margin: 0;
+        line-height: 1;
+    }
+
+    .year-stats-pill {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 5px 15px;
+        border-radius: 20px;
+        background: #eee;
+        font-size: 0.85rem;
+        color: #666;
+    }
+
+    /* Moment Card (Zig-Zag Logic) */
+    .moment-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5rem;
+        width: 100%;
+        position: relative;
+    }
+
+    .moment-card.reverse {
+        flex-direction: row-reverse;
+    }
+
+    .moment-visual,
+    .moment-narrative {
+        width: 45%;
+        /* Leave 10% for center gap */
+        position: relative;
+    }
+
+    /* Connector Dot */
+    .moment-connector {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .moment-connector .dot {
+        width: 16px;
+        height: 16px;
+        background: white;
+        border: 4px solid var(--primary-color);
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px #fdfcfa;
+        /* Mask */
+    }
+
+    /* Visual Side */
+    .image-frame {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.4s;
+        background: white;
+        padding: 8px;
+        padding-bottom: 40px;
+        /* Polaroid Style */
+    }
+
+    .image-frame img {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 4px;
+        transition: transform 0.5s;
+    }
+
+    .moment-card:hover .image-frame {
+        transform: translateY(-5px) rotate(1deg);
+    }
+
+    .moment-card.reverse:hover .image-frame {
+        transform: translateY(-5px) rotate(-1deg);
+    }
+
+    .moment-card:hover img {
+        transform: scale(1.05);
+    }
+
+    /* Narrative Side */
+    .moment-narrative {
+        padding: 2rem;
+        text-align: left;
+    }
+
+    .moment-card.reverse .moment-narrative {
+        text-align: right;
+    }
+
+    .moment-date {
+        font-size: 0.9rem;
+        letter-spacing: 2px;
+        color: #999;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .moment-title {
+        font-family: 'Song Myung', serif;
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+        color: #2c3e50;
+    }
+
+    .moment-caption {
+        font-family: 'Gowun Batang', serif;
+        font-size: 1.1rem;
+        line-height: 1.7;
+        color: #555;
+        font-style: italic;
+    }
+
+    /* --- Seasonal Badges --- */
+    .season-badge {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        padding: 5px 12px;
+        background: white;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Accent Colors by Season */
+    .season-badge.spring {
+        color: #d46a6a;
+        border: 1px solid #FFD1DC;
+    }
+
+    .season-badge.summer {
+        color: #1e88e5;
+        border: 1px solid #BBDEFB;
+    }
+
+    .season-badge.autumn {
+        color: #d35400;
+        border: 1px solid #F5CBA7;
+    }
+
+    .season-badge.winter {
+        color: #546e7a;
+        border: 1px solid #CFD8DC;
+    }
+
+    /* Seasonal Borders for Images */
+    .moment-card[data-season="Spring"] .image-frame {
+        border-bottom: 4px solid var(--season-spring);
+    }
+
+    .moment-card[data-season="Summer"] .image-frame {
+        border-bottom: 4px solid var(--season-summer);
+    }
+
+    .moment-card[data-season="Autumn"] .image-frame {
+        border-bottom: 4px solid var(--season-autumn);
+    }
+
+    .moment-card[data-season="Winter"] .image-frame {
+        border-bottom: 4px solid var(--season-winter);
+    }
+
+    /* --- Footer --- */
+    .highlight-footer {
+        text-align: center;
+        padding: 6rem 0;
+        background: white;
+        margin-top: 4rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-primary-outline {
+        display: inline-block;
+        margin-top: 2rem;
+        padding: 10px 30px;
+        border: 2px solid var(--primary-color);
+        color: var(--primary-color);
+        text-decoration: none;
+        border-radius: 30px;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+
+    .btn-primary-outline:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* --- Mobile Responsive --- */
+    @media (max-width: 768px) {
+        .timeline-journey {
+            padding: 2rem 1rem;
+        }
+
+        .journey-line {
+            left: 20px;
+            /* Line moves to left side */
+        }
+
+        .year-marker h2 {
+            font-size: 3rem;
+        }
+
+        .moment-card,
+        .moment-card.reverse {
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 4rem;
+            padding-left: 40px;
+            /* Make room for line */
+        }
+
+        .moment-visual,
+        .moment-narrative {
+            width: 100%;
+            text-align: left !important;
+        }
+
+        .moment-connector {
+            left: 20px;
+            /* Align with line */
+        }
+
+        .moment-visual {
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-content h1 {
+            font-size: 3.5rem;
+            line-height: 1.1;
+        }
+    }
+
+    /* --- Animations --- */
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes bounce {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .fade-in {
+        opacity: 0;
+        animation: fadeIn 1.5s forwards;
+    }
+
+    .delay-1 {
+        animation-delay: 0.5s;
+    }
+
+    .delay-2 {
+        animation-delay: 1s;
+    }
+
+    @keyframes fadeIn {
+        to {
+            opacity: 1;
+        }
+    }
+
+    .reveal {
+        opacity: 0;
+        transform: translateY(50px);
+        transition: all 1s ease-out;
+    }
+
+    .reveal.active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+</style>
+
+<script>
+    // Modern Intersection Observer for Reveal
+    // Ensures elements fade IN but never fade OUT
+    const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1 // Trigger when 10% visible
+    };
+
+    const observer = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('active');
+                // Stop observing once revealed (Performance & UX)
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.reveal').forEach(el => {
+        observer.observe(el);
+    });
+</script>
+{% endblock %}

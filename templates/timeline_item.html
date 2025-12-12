@@ -1,0 +1,300 @@
+<div class="timeline-item" data-date="{{ event.date }}">
+    <!-- Image/Video Section - Full Width on Mobile -->
+    <div class="media-container">
+        {% if event.image_url %}
+        <a href="/edit/{{ event.id }}" class="edit-overlay-btn" title="Edit">✏️</a>
+
+        <!-- Stack Badge -->
+        {% if event.stack_id and event.stack_count and event.stack_count > 1 %}
+        <div class="stack-badge-overlay" onclick="openStackModal('{{ event.stack_id }}', event)">
+            <span class="stack-icon">❏</span>
+            <span class="stack-count">+{{ event.stack_count }}</span>
+        </div>
+        {% endif %}
+
+        {% if event.media_type == 'video' %}
+        <div style="position: relative; cursor: pointer;">
+            <!-- ... -->
+            <div onclick="openDetailModal({{ event.id }})" style="display: block;">
+                {% if event.thumbnail_url %}
+                <img src="{{ event.thumbnail_url }}" alt="{{ event.title }}" class="timeline-image"
+                    style="display: block;">
+                {% else %}
+                <img src="{{ event.image_url }}" alt="{{ event.title }}" class="timeline-image" style="display: block;">
+                {% endif %}
+                <div class="play-overlay"
+                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.8); pointer-events: none;">
+                    ▶</div>
+            </div>
+        </div>
+        {% else %}
+        <img src="{{ event.image_url }}" alt="{{ event.title }}" class="timeline-image" style="cursor: pointer;"
+            onclick="openDetailModal({{ event.id }})">
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Text Content -->
+    <div class="timeline-content">
+        <div class="date-header">{{ event.date }}</div>
+
+        {% if event.title %}
+        <h3>{{ event.title }}</h3>
+        {% endif %}
+
+        <!--
+        {% if event.description %}
+        <p class="description-text">{{ event.description }}</p>
+        {% endif %}
+
+        <div class="ai-summary-block">
+            {% if event.summary %}
+            <p class="ai-summary">
+                <span style="opacity:0.7">✨ AI:</span> {{ event.summary }}
+            </p>
+            {% endif %}
+        -->
+
+        <div class="ai-summary-block">
+            <!-- AI Summary Hidden -->
+
+            {% if event.faces %}
+            <p class="people-list">
+                👥 <span class="people-names">
+                    {% for face in event.faces %}
+                    {% if face.person %}
+                    <a href="/people/{{ face.person.id }}">
+                        {{ face.person.name }}
+                        {% if face.emotion == 'happy' %}😄
+                        {% elif face.emotion == 'sad' %}😢
+                        {% elif face.emotion == 'surprise' %}😲
+                        {% elif face.emotion == 'angry' %}😠
+                        {% elif face.emotion == 'fear' %}😱
+                        {% elif face.emotion == 'disgust' %}🤢
+                        {% endif %}
+                    </a>{{ ", " if not loop.last else "" }}
+                    {% endif %}
+                    {% endfor %}
+                </span>
+            </p>
+            {% endif %}
+        </div>
+
+        {% if event.tags or (event.latitude and event.longitude) or true %} {# 'true' added to always render meta-footer
+        if edit button is present #}
+        <div class="meta-footer">
+            {% if event.tags %}
+            <div class="tag-container">
+                {# Only show first 3 tags to keep it clean #}
+                {% for tag in event.tags.split(',')[:3] %}
+                <span class="tag-badge">{{ tag.strip() }}</span>
+                {% endfor %}
+                {% if event.tags.split(',')|length > 3 %}
+                <span class="tag-badge more" title="{{ event.tags }}">+{{ event.tags.split(',')|length - 3 }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if event.location_name or (event.latitude and event.longitude) %}
+            <a href="/map?focus={{ event.id }}" class="context-badge location" title="View on Map">
+                📍 {{ event.location_name if event.location_name else "Unknown Location" }}
+            </a>
+            {% endif %}
+
+            {% if event.weather_info %}
+            <span class="context-badge weather" title="Historical Weather">
+                {{ event.weather_info }}
+            </span>
+            {% endif %}
+
+            {# Edit button moved to overlay #}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    /* ... existing styles ... */
+    .media-container {
+        position: relative;
+    }
+
+    .context-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        background: rgba(0, 0, 0, 0.03);
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: #555;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        margin-right: 8px;
+    }
+
+    .context-badge:hover {
+        background: rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .context-badge.location {
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    .context-badge.weather {
+        color: #666;
+        cursor: default;
+    }
+
+    /* Mobile tweaks */
+    @media (max-width: 768px) {
+        .tag-container {
+            display: none;
+            /* Hide tags on mobile to save space for context */
+        }
+
+        .context-badge {
+            font-size: 0.8rem;
+            padding: 4px 10px;
+        }
+    }
+
+    .date-header {
+        font-family: var(--font-heading);
+        color: var(--accent-color);
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        font-style: italic;
+    }
+
+    .description-text {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #444;
+        margin-bottom: 1rem;
+    }
+
+    .ai-summary-block {
+        background: #f9f9f9;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .ai-summary {
+        margin: 0 0 5px 0;
+        font-style: normal;
+        border: none;
+        padding: 0;
+        background: none;
+    }
+
+    .people-list {
+        margin: 0;
+        font-size: 0.85rem;
+    }
+
+    .people-names a {
+        color: var(--text-color);
+        text-decoration: underline;
+        text-decoration-color: var(--accent-color);
+        font-weight: 600;
+    }
+
+    .meta-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .edit-btn-minimal {
+        opacity: 0.3;
+        transition: opacity 0.2s;
+        text-decoration: none;
+        font-size: 1rem;
+    }
+
+    .edit-btn-minimal:hover {
+        opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+        .media-container {
+            position: relative;
+            margin-left: -1rem;
+            /* Adjust based on parent padding */
+            margin-right: -1rem;
+            width: calc(100% + 2rem);
+        }
+
+        .timeline-image {
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            /* Remove polaroid padding */
+        }
+    }
+
+    .edit-overlay-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255, 255, 255, 0.8);
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-decoration: none;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        font-size: 1rem;
+        transition: transform 0.2s;
+        opacity: 0.7;
+    }
+
+    .edit-overlay-btn:hover {
+        transform: scale(1.1);
+        background: white;
+        opacity: 1;
+    }
+
+    .stack-badge-overlay {
+        position: absolute;
+        top: 15px;
+        right: 60px;
+        /* Left of Edit button */
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        z-index: 10;
+        backdrop-filter: blur(4px);
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    .stack-badge-overlay:hover {
+        transform: scale(1.05);
+        background: rgba(0, 0, 0, 0.8);
+    }
+
+    .stack-icon {
+        font-size: 1.1rem;
+    }
+</style>

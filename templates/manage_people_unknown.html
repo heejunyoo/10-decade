@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Unknown Faces - The Decade Journey{% endblock %}
+
+{% block head %}
+<!-- Tailwind is already loaded in base.html -->
+{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 pt-28 pb-32">
+    <!-- Header -->
+    <div
+        class="sticky top-16 bg-white/95 dark:bg-gray-900/95 backdrop-blur z-40 py-6 border-b border-stone-200 dark:border-gray-800 mb-8 transition-all">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-3xl font-bold text-primary dark:text-gray-100 flex items-center gap-3 font-serif">
+                    <span class="text-4xl">🧩</span> Unknown Faces
+                    <span
+                        class="text-sm font-normal text-primary bg-accent/20 border border-accent px-3 py-0.5 rounded-full"
+                        id="total-clusters">Loading...</span>
+                </h2>
+                <p class="text-gray-500 mt-2 pl-1 font-sans">Select clusters that look like the same person to merge
+                    them.</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="selectAll()"
+                    class="px-5 py-2.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 rounded-lg transition shadow-sm font-medium text-sm flex items-center gap-2 font-sans">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Select All
+                </button>
+                <a href="/manage/people"
+                    class="px-5 py-2.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 rounded-lg transition shadow-sm font-medium text-sm font-sans">Exit</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cluster Grid: Square (1:1) Layout -->
+    <!-- Responsive: 2 cols mobile, 4 tablet, 6 desktop, 8 wide screen -->
+    <div id="cluster-grid"
+        class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 select-none pb-20">
+
+        <!-- Loading State -->
+        <div class="col-span-full py-32 flex flex-col items-center justify-center text-gray-400">
+            <div class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-lg font-medium animate-pulse font-serif text-primary">Scanning for memories...
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<!-- Sticky Action Bar (Fixed at Bottom) -->
+<div id="action-bar"
+    class="fixed bottom-0 left-0 right-0 bg-primary/95 backdrop-blur-md border-t border-accent/30 shadow-[0_-8px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300 z-50">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+
+        <div class="flex items-center gap-4">
+            <div class="bg-accent text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-md ring-2 ring-accent/50"
+                id="selected-count">0</div>
+            <div>
+                <p class="text-white font-bold text-lg font-serif">Groups Selected</p>
+                <p class="text-xs text-gray-400 font-sans">Ready to merge</p>
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button onclick="clearSelection()"
+                class="px-6 py-2.5 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition font-medium font-sans">Cancel</button>
+            <button onclick="openMergeModal()"
+                class="px-8 py-2.5 bg-accent hover:bg-[#c4a030] text-white rounded-xl shadow-lg transition font-bold text-base tracking-wide flex items-center gap-2 transform active:scale-95 font-sans">
+                <span>Merge Faces</span>
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Merge Modal -->
+<div id="merge-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-primary/80 backdrop-blur-sm transition-opacity" onclick="closeMergeModal()"></div>
+
+    <div
+        class="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-sm shadow-2xl p-8 border-t-4 border-accent transform transition-all scale-100">
+        <h3 class="text-3xl font-bold text-primary dark:text-gray-100 mb-2 font-serif text-center">Merge
+            Faces</h3>
+        <p class="text-gray-500 mb-8 text-center font-sans">Merging <span id="modal-count"
+                class="font-bold text-accent">0</span>
+            groups into one identity.</p>
+
+        <div class="mb-8">
+            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1 font-sans">Identity
+                Name</label>
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400 group-focus-within:text-accent transition-colors" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <input type="text" id="target-name-input" list="people-list"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-accent focus:border-accent outline-none transition-all placeholder-gray-400 font-sans"
+                    placeholder="Search or type name..." autocomplete="off">
+                <datalist id="people-list">
+                    {% for person in people %}
+                    <option value="{{ person.name }}">
+                        {% endfor %}
+                </datalist>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="closeMergeModal()"
+                class="px-4 py-3 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium font-sans">Cancel</button>
+            <button onclick="confirmMerge()"
+                class="px-4 py-3 bg-primary hover:bg-[#2c3b55] text-white rounded-lg transition-colors font-bold shadow-lg flex justify-center items-center gap-2 font-sans">
+                <span id="merge-spinner"
+                    class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let clusters = [];
+    let selectedClusterIds = new Set();
+    let slideshowInterval = null;
+
+    // Fetch Clusters
+    (async function init() {
+        try {
+            const res = await fetch('/faces/clusters?threshold=0.45');
+            clusters = await res.json();
+            document.getElementById('total-clusters').innerText = clusters.length;
+            renderClusters();
+        } catch (e) {
+            console.error(e);
+            document.getElementById('cluster-grid').innerHTML = '<p class="col-span-full text-center text-red-500 py-10 font-medium">Failed to load clusters. Check server logs.</p>';
+        }
+    })();
+
+    // Render Cards
+    function renderClusters() {
+        const grid = document.getElementById('cluster-grid');
+
+        if (clusters.length === 0) {
+            grid.innerHTML = `
+                <div class="col-span-full text-center py-32 opacity-60">
+                    <div class="text-6xl mb-6">🎉</div>
+                    <p class="text-2xl font-bold text-gray-800 dark:text-gray-200">All Clean!</p>
+                    <p class="text-gray-500 mt-2">No unknown faces found.</p>
+                </div>`;
+            return;
+        }
+
+        grid.innerHTML = clusters.map((cluster, idx) => {
+            const thumb = cluster.thumbnails[0] || '/static/img/placeholder_face.png';
+            const count = cluster.count;
+
+            // Prepare data for slideshow: original_url and location (bbox)
+            // items is list of {face_url, original_url, date, location}
+            const slideData = JSON.stringify(cluster.items || []);
+            const escapedData = slideData.replace(/"/g, '&quot;');
+
+            return `
+            <div class="relative group cursor-pointer aspect-square rounded-2xl overflow-hidden text-left shadow-sm transition-all duration-300 hover:shadow-lg border-[3px] border-transparent bg-gray-100 dark:bg-gray-800"
+                 onclick="toggleSelect(${idx})" id="card-${idx}"
+                 onmouseenter="startSlideshow(this, ${escapedData})"
+                 onmouseleave="stopSlideshow(this, '${thumb}')">
+                
+                <!-- Main Image -->
+                <img id="img-${idx}" src="${thumb}" class="w-full h-full object-cover transition-transform duration-700" loading="lazy">
+                
+                <!-- Face Box Overlay -->
+                <div id="face-box-${idx}" class="absolute border-[3px] border-red-500 shadow-[0_0_10px_rgba(255,0,85,0.5)] rounded-md pointer-events-none hidden transition-all duration-200 z-20"></div>
+
+                <!-- Overlay Gradient -->
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 pointer-events-none group-hover:opacity-0 transition-opacity duration-300"></div>
+                
+                <!-- Selection Overlay (Primary Tint) -->
+                <div class="absolute inset-0 bg-primary/40 opacity-0 transition-opacity duration-200 backdrop-blur-[2px] pointer-events-none" id="overlay-${idx}"></div>
+
+                <!-- Count Badge -->
+                <span class="absolute bottom-3 left-3 bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 shadow-sm transition-opacity group-hover:opacity-0">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    ${count}
+                </span>
+
+                <!-- Check Icon -->
+                <div class="absolute top-3 right-3 w-8 h-8 bg-accent text-white rounded-full flex items-center justify-center shadow-lg transform scale-0 transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) z-30" id="check-${idx}">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+    // Slideshow Logic with Red Box Calculation
+    function startSlideshow(card, items) {
+        if (!items || items.length === 0) return;
+
+        const img = card.querySelector('img');
+        const box = card.querySelector('[id^="face-box-"]');
+        let idx = 0;
+
+        // Helper to Draw Box
+        const drawBox = (item) => {
+            // Must wait for image load to get natural dimensions
+            if (!img.complete || img.naturalWidth === 0) {
+                img.onload = () => drawBox(item);
+                return;
+            }
+            img.onload = null; // Clear listener
+
+            if (!item.location) {
+                box.classList.add('hidden');
+                return;
+            }
+
+            try {
+                // Parse BBox [top, right, bottom, left]
+                const [top, right, bottom, left] = JSON.parse(item.location);
+
+                const natW = img.naturalWidth;
+                const natH = img.naturalHeight;
+                const clientW = img.clientWidth;
+                const clientH = img.clientHeight;
+
+                // object-fit: cover math
+                const natRatio = natW / natH;
+                const clientRatio = clientW / clientH;
+
+                let renderW, renderH, offsetX, offsetY;
+
+                if (clientRatio > natRatio) {
+                    renderW = clientW;
+                    renderH = clientW / natRatio;
+                    offsetX = 0;
+                    offsetY = (clientH - renderH) / 2;
+                } else {
+                    renderH = clientH;
+                    renderW = clientH * natRatio;
+                    offsetY = 0;
+                    offsetX = (clientW - renderW) / 2;
+                }
+
+                const scaleX = renderW / natW;
+                const scaleY = renderH / natH;
+
+                const boxTop = (top * scaleY) + offsetY;
+                const boxLeft = (left * scaleX) + offsetX;
+                const boxW = (right - left) * scaleX;
+                const boxH = (bottom - top) * scaleY;
+
+                box.style.top = `${boxTop}px`;
+                box.style.left = `${boxLeft}px`;
+                box.style.width = `${boxW}px`;
+                box.style.height = `${boxH}px`;
+                box.classList.remove('hidden');
+
+            } catch (e) {
+                console.error("Box calc error", e);
+                box.classList.add('hidden');
+            }
+        };
+
+        // 1. Show First Image Immediately
+        const showItem = (i) => {
+            const item = items[i];
+            if (item.original_url) {
+                img.src = item.original_url;
+                drawBox(item);
+            }
+        };
+        showItem(0);
+
+        // 2. Cycle if multiple
+        if (items.length > 1) {
+            // Ensure we clear previous
+            if (card.dataset.interval) clearInterval(card.dataset.interval);
+
+            const interval = setInterval(() => {
+                idx = (idx + 1) % items.length;
+                showItem(idx);
+            }, 1000); // 1.2s per slide
+
+            card.dataset.interval = interval;
+        }
+    }
+
+    function stopSlideshow(card, originalSrc) {
+        if (card.dataset.interval) {
+            clearInterval(card.dataset.interval);
+            delete card.dataset.interval;
+        }
+        // Restore
+        const img = card.querySelector('img');
+        const box = card.querySelector('[id^="face-box-"]');
+
+        if (img) {
+            img.src = originalSrc;
+            img.onload = null; // Clear handlers
+        }
+        if (box) box.classList.add('hidden');
+    }
+
+    function toggleSelect(idx) {
+        const div = document.getElementById(`card-${idx}`);
+        const check = document.getElementById(`check-${idx}`);
+        const overlay = document.getElementById(`overlay-${idx}`);
+
+        if (selectedClusterIds.has(idx)) {
+            // Deselect
+            selectedClusterIds.delete(idx);
+            // Reset Styles
+            div.classList.remove('border-accent', 'ring-4', 'ring-accent/30', 'shadow-xl', 'scale-95');
+            div.classList.add('border-transparent');
+
+            check.classList.remove('scale-100');
+            check.classList.add('scale-0');
+
+            overlay.classList.remove('opacity-100');
+            overlay.classList.add('opacity-0');
+        } else {
+            // Select
+            selectedClusterIds.add(idx);
+            // Add Highlight Styles
+            div.classList.remove('border-transparent');
+            div.classList.add('border-accent', 'ring-4', 'ring-accent/30', 'shadow-xl', 'scale-95');
+
+            check.classList.remove('scale-0');
+            check.classList.add('scale-100');
+
+            overlay.classList.remove('opacity-0');
+            overlay.classList.add('opacity-100');
+        }
+        updateActionBar();
+    }
+
+
+    function updateActionBar() {
+        const bar = document.getElementById('action-bar');
+        const count = document.getElementById('selected-count');
+
+        count.innerText = selectedClusterIds.size;
+
+        if (selectedClusterIds.size > 0) {
+            bar.classList.remove('translate-y-full');
+        } else {
+            bar.classList.add('translate-y-full');
+        }
+    }
+
+    function selectAll() {
+        if (clusters.length === 0) return;
+        const allSelected = selectedClusterIds.size === clusters.length;
+
+        clusters.forEach((_, idx) => {
+            if (allSelected) {
+                if (selectedClusterIds.has(idx)) toggleSelect(idx);
+            } else {
+                if (!selectedClusterIds.has(idx)) toggleSelect(idx);
+            }
+        });
+    }
+
+    function clearSelection() {
+        clusters.forEach((_, idx) => {
+            if (selectedClusterIds.has(idx)) toggleSelect(idx);
+        });
+    }
+
+    function openMergeModal() {
+        document.getElementById('modal-count').innerText = selectedClusterIds.size;
+        document.getElementById('merge-modal').classList.remove('hidden');
+        document.getElementById('target-name-input').focus();
+    }
+
+    function closeMergeModal() {
+        document.getElementById('merge-modal').classList.add('hidden');
+    }
+
+    async function confirmMerge() {
+        const name = document.getElementById('target-name-input').value.trim();
+        if (!name) return alert("Please enter a name");
+
+        document.getElementById('merge-spinner').classList.remove('hidden');
+
+        // Collect IDs
+        let pIds = [];
+        selectedClusterIds.forEach(idx => pIds.push(...clusters[idx].person_ids_to_merge));
+        pIds = [...new Set(pIds)];
+
+        try {
+            const res = await fetch('/faces/merge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_name: name, source_person_ids: pIds })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                closeMergeModal();
+                selectedClusterIds.clear();
+                updateActionBar();
+                // Reload 
+                const res2 = await fetch('/faces/clusters?threshold=0.45');
+                clusters = await res2.json();
+                document.getElementById('total-clusters').innerText = clusters.length;
+                renderClusters();
+            } else {
+                alert("Merge Failed");
+            }
+        } catch (e) { alert("Error: " + e); }
+        finally { document.getElementById('merge-spinner').classList.add('hidden'); }
+    }
+</script>
+{% endblock %}

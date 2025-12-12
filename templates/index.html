@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>10 Years of Us</h1>
+        <p class="subtitle">2015 - 2025</p>
+        <p class="description">사랑하는 아내, 그리고 우리 아이와 함께한 소중한 시간들</p>
+        <a href="#timeline" class="cta-button">여정 시작하기</a>
+    </div>
+</section>
+
+</section>
+
+<!-- Daily AI Interviewer Widget -->
+<div class="container mx-auto px-4 -mt-10 relative z-10" hx-get="/memories/daily" hx-trigger="load" hx-swap="innerHTML">
+    <!-- Content loaded via HTMX -->
+</div>
+
+<!-- Decade Analytics Section -->
+
+<!-- Decade Analytics Section -->
+<section class="py-16 px-8 bg-gradient-to-b from-white to-gray-50 text-center analytics-section">
+    <div class="mb-12">
+        <h2 class="font-serif text-4xl text-primary mb-2">The Decade in Numbers</h2>
+        <p class="text-gray-500 italic">Statistical highlights of our journey together</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <!-- Total Memories -->
+        <div
+            class="bg-white p-8 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all border border-gray-100 group">
+            <div class="text-4xl mb-4 block">📸</div>
+            <div class="text-5xl font-bold font-serif mb-2 text-primary counter"
+                data-target="{{ analytics.total_memories }}">0</div>
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-widest">Total Memories</div>
+            <div class="text-sm text-gray-400 mt-2">{{ analytics.total_photos }} Photos · {{ analytics.total_videos }}
+                Videos</div>
+        </div>
+
+        <!-- Busiest Year (Golden Era) -->
+        <div
+            class="bg-primary p-8 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all border border-primary text-white group relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">🌟</div>
+            <div class="text-4xl mb-4 block relative z-10">🌟</div>
+            {% if analytics.busiest_year %}
+            <div class="text-5xl font-bold font-serif mb-2 text-accent relative z-10">{{ analytics.busiest_year[0] }}
+            </div>
+            <div class="text-sm font-semibold text-white/90 uppercase tracking-widest relative z-10">Our Golden Era
+            </div>
+            <div class="text-sm text-white/60 mt-2 relative z-10">Recorded {{ analytics.busiest_year[1] }} precious
+                moments</div>
+            {% else %}
+            <div class="text-5xl font-bold font-serif mb-2 text-accent relative z-10">-</div>
+            <div class="text-sm font-semibold text-white/90 uppercase tracking-widest relative z-10">Golden Era</div>
+            <div class="text-sm text-white/60 mt-2 relative z-10">Not enough data yet</div>
+            {% endif %}
+        </div>
+
+        <!-- Top Themes -->
+        <div
+            class="bg-white p-8 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all border border-gray-100 group">
+            <div class="text-4xl mb-4 block">🏷️</div>
+            <div class="flex flex-col gap-2 min-h-[3.5rem] justify-center items-center mb-2">
+                {% if analytics.top_tags %}
+                {% for tag in analytics.top_tags[:3] %}
+                <span class="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-600">{{ tag[0].split(',')[0] }}</span>
+                {% endfor %}
+                {% else %}
+                <span class="text-gray-400 italic">Start tagging!</span>
+                {% endif %}
+            </div>
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-2">Top Themes</div>
+        </div>
+    </div>
+</section>
+
+
+
+<script>
+    // Force scroll to top on refresh for a fresh "Journey" start
+    if (history.scrollRestoration) {
+        history.scrollRestoration = 'manual';
+    }
+
+    // Simple Counter Animation
+    document.addEventListener('DOMContentLoaded', () => {
+        const counters = document.querySelectorAll('.counter');
+        const speed = 200;
+
+        const animateCounters = () => {
+            counters.forEach(counter => {
+                const target = +counter.getAttribute('data-target');
+                const count = +counter.innerText;
+                const inc = target / speed;
+
+                if (count < target) {
+                    counter.innerText = Math.ceil(count + inc);
+                    setTimeout(animateCounters, 1);
+                } else {
+                    counter.innerText = target;
+                }
+            });
+        }
+
+        // Trigger on scroll
+        let counted = false;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !counted) {
+                animateCounters();
+                counted = true;
+            }
+        }, { threshold: 0.5 });
+
+        const section = document.querySelector('.analytics-section');
+        if (section) observer.observe(section);
+    });
+</script>
+
+<section id="timeline" class="py-16 timeline-section">
+    <h2 class="text-3xl font-serif text-center mb-12 text-primary">Our Timeline</h2>
+
+    {% if on_this_day_events %}
+    <div class="on-this-day-section">
+        <div class="otd-header">
+            <h3>📅 On This Day</h3>
+            <p>Memories from previous years</p>
+        </div>
+        <div class="otd-container">
+            {% for event in on_this_day_events %}
+            <div class="otd-card">
+                <div class="otd-image-wrapper">
+                    {% if event.media_type == 'video' %}
+                    {% if event.thumbnail_url %}
+                    <img src="{{ event.thumbnail_url }}" alt="{{ event.title }}">
+                    {% else %}
+                    <video src="{{ event.image_url }}#t=0.1" preload="metadata"></video>
+                    {% endif %}
+                    <div class="play-icon">▶</div>
+                    {% else %}
+                    <img src="{{ event.image_url }}" alt="{{ event.title }}">
+                    {% endif %}
+                </div>
+                <div class="otd-info">
+                    <span class="otd-year">{{ event.date.split('-')[0] }}</span>
+                    {% if event.title %}
+                    <span class="otd-title">{{ event.title }}</span>
+                    {% endif %}
+                </div>
+                <a href="/#timeline" class="otd-link-overlay" onclick="scrollToEvent('{{ event.date }}')"></a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# Filter bar removed #}
+
+    <div class="timeline-container">
+        {% for event in events %}
+        {% include "timeline_item.html" %}
+        {% else %}
+        <div class="timeline-item no-memories">
+            <div class="timeline-content">
+                <p>아직 등록된 추억이 없습니다. <a href="/add">추억 추가하기</a></p>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if next_skip %}
+        <div hx-get="/api/timeline?skip={{ next_skip }}&limit={{ limit }}" hx-trigger="revealed" hx-swap="outerHTML"
+            class="timeline-loader">
+            <p style="text-align: center; color: #888; padding: 2rem;">Loading more memories...</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+
+</section>
+{% endblock %}

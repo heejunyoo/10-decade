@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: decade_journey
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist Uploads
+      - ./static/uploads:/app/static/uploads
+      # Persist Database
+      - ./decade.db:/app/decade.db
+      # Persist Backups
+      - ./backups:/app/backups
+      # Persist HuggingFace Models (save download time on restart)
+      # Persist HuggingFace Models (Florence-2 ~1.5GB)
+      - ./.cache/huggingface:/root/.cache/huggingface
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Connect to Host's Ollama (Mac/Win: host.docker.internal, Linux: 172.17.0.1 or --network host)
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    restart: unless-stopped
+    # Optional resource limits for AI stability
+    deploy:
+      resources:
+        limits:
+          memory: 6G

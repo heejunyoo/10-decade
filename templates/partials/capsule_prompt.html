@@ -1,0 +1,9 @@
+<div class="smart-prompt-box" x-data="{ used: false }">
+    <div class="prompt-label">🤖 AI's Question</div>
+    <p class="prompt-text">"{{ smart_prompt }}"</p>
+    <button type="button" class="use-prompt-btn"
+        @click="$dispatch('use-prompt', {text: '{{ smart_prompt }}'}); used = true" x-show="!used">
+        이 질문에 답하기
+    </button>
+    <span x-show="used" class="used-badge">질문이 추가되었습니다 ✅</span>
+</div>

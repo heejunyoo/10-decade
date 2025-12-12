@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="form-section">
+    <h2>Add New Memory</h2>
+    {% if msg %}
+    <div class="alert success">{{ msg }}</div>
+    {% endif %}
+    <form id="uploadForm" action="/add" method="post" enctype="multipart/form-data" class="capsule-form">
+        <label>Date (Optional)</label>
+        <input type="date" name="date">
+
+        <label>Photos & Videos (Select Multiple)</label>
+        <input type="file" name="files" multiple accept="image/*,video/*" id="fileInput">
+
+        <label>Title (Optional)</label>
+        <input type="text" name="title" placeholder="e.g. 1주년 여행">
+
+        <label>Description (Optional)</label>
+        <textarea name="description" placeholder="그날의 기억..."></textarea>
+
+
+
+        <div class="progress-container" id="progressContainer" style="display: none;">
+            <div class="progress-bar" id="progressBar">0%</div>
+        </div>
+        <p id="statusText" style="text-align: center; margin-top: 0.5rem; display: none;"></p>
+
+        <button type="submit" id="submitBtn">Add Memory</button>
+        <a href="/" class="back-link">Back to Home</a>
+    </form>
+</section>
+
+<style>
+    .form-section {
+        padding-top: 100px;
+    }
+
+    .back-link {
+        display: block;
+        text-align: center;
+        margin-top: 1rem;
+        color: var(--primary-color);
+    }
+
+    .alert {
+        padding: 1rem;
+        background: #d4edda;
+        color: #155724;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+    }
+
+    .progress-container {
+        width: 100%;
+        background-color: #f3f3f3;
+        border-radius: 5px;
+        margin-top: 1rem;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        width: 0%;
+        height: 30px;
+        background-color: var(--accent-color);
+        text-align: center;
+        line-height: 30px;
+        color: black;
+        transition: width 0.3s;
+    }
+</style>
+
+<script>
+    const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('fileInput');
+    const progressBar = document.getElementById('progressBar');
+    const progressContainer = document.getElementById('progressContainer');
+    const statusText = document.getElementById('statusText');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const files = fileInput.files;
+        if (files.length === 0) {
+            alert("Please select at least one file.");
+            return;
+        }
+
+        const formData = new FormData(form);
+        const xhr = new XMLHttpRequest();
+
+        // Show progress UI
+        progressContainer.style.display = 'block';
+        statusText.style.display = 'block';
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Uploading...";
+
+        xhr.open('POST', '/add', true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressBar.innerText = percentComplete + '%';
+                statusText.innerText = `Uploading ${files.length} files... (${percentComplete}%)`;
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                statusText.innerText = "Upload Complete! Processing...";
+                progressBar.style.backgroundColor = '#4CAF50'; // Green
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 1000);
+            } else {
+                statusText.innerText = "Upload Failed. Please try again.";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Add Memory";
+            }
+        };
+
+        xhr.onerror = () => {
+            statusText.innerText = "Network Error.";
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Add Memory";
+        };
+
+        xhr.send(formData);
+    });
+</script>
+{% endblock %}

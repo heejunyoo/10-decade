@@ -1,0 +1,38 @@
+# Core Web & App
+fastapi
+uvicorn
+python-multipart
+jinja2
+requests
+aiofiles
+
+# Database
+sqlalchemy
+chromadb>=0.5.0
+
+# Image & Vision
+opencv-python-headless
+pillow
+pillow_heif
+
+# Face Recognition
+insightface>=0.7
+onnxruntime
+deepface
+tf-keras
+
+# AI & ML
+numpy<2.0
+transformers
+torch
+torchvision
+timm
+einops
+sentence-transformers
+ollama
+
+# Utilities
+tqdm
+google-generativeai
+geopy
+deep-translator
