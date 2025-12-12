@@ -106,7 +106,11 @@ def process_ai_for_event(event_id: int):
         # 2 & 3. Scene Analysis (Tags + Caption) - Optimized Single Pass
         if vision_service and event.media_type == "photo":
             try:
-                tags, caption = vision_service.analyze_scene(file_path, names=found_names)
+                analysis_result = vision_service.analyze_scene(file_path, names=found_names)
+                
+                tags = analysis_result.get("tags", [])
+                caption = analysis_result.get("summary")
+                mood = analysis_result.get("mood")
                 
                 # Update Tags
                 if tags:
@@ -120,6 +124,11 @@ def process_ai_for_event(event_id: int):
                     event.summary = caption
                     logger.info(f"Caption: {caption}")
                 
+                # Update Mood (if model supports it)
+                if mood:
+                     event.mood = mood
+                     logger.info(f"Mood: {mood}")
+
                 db.commit()
             except Exception as e:
                 logger.error(f"Scene Analysis error: {e}")
