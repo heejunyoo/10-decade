@@ -89,16 +89,25 @@
     }
 
     /* --- Global Layout --- */
+    /* --- Global Layout --- */
     .highlights-container {
         font-family: var(--font-heading);
         background-color: #fdfcfa;
         color: var(--text-color);
+        /* overflow-x: hidden; REMOVED: Moved to body to prevent scroll locking */
+    }
+
+    /* Fix scroll locking on mobile */
+    body {
         overflow-x: hidden;
     }
 
     /* --- Hero Section (Parallax) --- */
     .highlight-hero {
         height: 100vh;
+        /* Fallback */
+        height: 100dvh;
+        /* Mobile Viewport Fix */
         display: flex;
         align-items: center;
         justify-content: center;

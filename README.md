@@ -41,6 +41,18 @@ This project is built on a **Hybrid AI Architecture**, leveraging the best of lo
 *   **Semantic Search:** Search memories by concept ("Playing in the snow with Dad") rather than just keywords, powered by RAG (Retrieval-Augmented Generation).
 *   **Emotion & Mood:** Detects dominant emotions (e.g., "Dad 😄") and atmospheric mood (e.g., "Nostalgic") for every photo.
 
+### 3. Local AI (Optional)
+To use the **Local AI** mode instead of Gemini:
+1. Install **Ollama**: [Download here](https://ollama.com) (or `brew install ollama`)
+2. Pull the required model:
+   ```bash
+   ollama pull llama3.1
+   ```
+3. The app will auto-start Ollama, or you can run `ollama serve` manually.
+
+### 4. Database (Auto-created)
+The SQLite database (`decade_journey.db`) and ChromaDB (`chroma_db/`) are automatically created on first run.
+
 ### 2. 👥 Advanced People Management
 *   **Face Clustering:** Automatically groups "Unknown" faces.
 *   **Interactive Merging:** Review and merge face clusters with a single click.
