@@ -7,7 +7,7 @@ The system follows a typical **Service-Repository** pattern implemented in FastA
 ### 🏛️ High-Level Diagram
 ```mermaid
 graph TD
-    Client[Web Client (PWA)] --> API[FastAPI Entrypoint]
+    Client["Web Client (PWA)"] --> API[FastAPI Entrypoint]
     
     subgraph Core Services
         API --> Timeline[Timeline Service]
@@ -17,17 +17,17 @@ graph TD
     end
     
     subgraph Data Layer
-        Timeline --> SQLite[SQLite (Metadata)]
-        Search --> Chroma[ChromaDB (Vectors)]
+        Timeline --> SQLite["SQLite (Metadata)"]
+        Search --> Chroma["ChromaDB (Vectors)"]
         Faces --> InsightFace[InsightFace Engine]
     end
     
     subgraph AI Pipeline
         Timeline --> Analyzer[Image Analyzer]
-        Analyzer --> Florence[Florence-2 (Local Vision)]
-        Analyzer --> Gemini[Gemini (Cloud Vision)]
+        Analyzer --> Florence["Florence-2 (Local Vision)"]
+        Analyzer --> Gemini["Gemini (Cloud Vision)"]
         Analyzer --> Translator[Google Translate API]
-        Faces --> DeepFace[DeepFace (Emotion)]
+        Faces --> DeepFace["DeepFace (Emotion)"]
     end
 ```
 

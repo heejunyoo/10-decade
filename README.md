@@ -84,7 +84,6 @@ This project is built on a **Hybrid AI Architecture**, leveraging the best of lo
     Create a `.env` file based on `.env.example`:
     ```ini
     # AI Configuration
-    AI_PROVIDER=local     # or 'gemini'
     GEMINI_API_KEY=your_key_here
     
     # App Secrets
