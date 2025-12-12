@@ -156,6 +156,26 @@ class MemoryVectorStore:
         # Default empty structure if no results
         if not results['ids']:
             return []
+
+        # Refine structure & Filter by Threshold
+        hits = []
+        THRESHOLD = 0.75  # Stricter filter (Lower is better for Cosine Distance)
+        
+        for i in range(len(results['ids'][0])):
+            score = results['distances'][0][i] if 'distances' in results else 1.0
+            
+            # Filter out weak matches
+            if score > THRESHOLD:
+                continue
+                
+            hits.append({
+                "id": results['ids'][0][i],
+                "score": score,
+                "text": results['documents'][0][i],
+                "metadata": results['metadatas'][0][i]
+            })
+            
+        return hits
             
     def get_embeddings(self, ids: List[str]) -> Dict[str, List[float]]:
         """
@@ -186,27 +206,6 @@ class MemoryVectorStore:
         except Exception as e:
             print(f"⚠️ Failed to fetch embeddings: {e}")
             return {}
-
-        # Refine structure
-        # Refine structure & Filter by Threshold
-        hits = []
-        THRESHOLD = 0.75  # Stricter filter (Lower is better for Cosine Distance)
-        
-        for i in range(len(results['ids'][0])):
-            score = results['distances'][0][i] if 'distances' in results else 1.0
-            
-            # Filter out weak matches
-            if score > THRESHOLD:
-                continue
-                
-            hits.append({
-                "id": results['ids'][0][i],
-                "score": score,
-                "text": results['documents'][0][i],
-                "metadata": results['metadatas'][0][i]
-            })
-            
-        return hits
 
 class Indexer:
     @staticmethod
