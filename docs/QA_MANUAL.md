@@ -1,65 +1,86 @@
 # 🧪 QA Manual
-**Quality Assurance & Testing Protocols**
+
+This document outlines the test plans to verify the integrity and functionality of **The Decade Journey**.
 
 ---
 
-## 1. Core Functionality Tests
+## 1. Core Workflow Testing
 
-### 📤 Media Upload
-| Test Case | Steps | Expected Result |
-| :--- | :--- | :--- |
-| **Single Photo** | Upload 1 JPG via "Add Memory". | File appears in Timeline. AI tags/summary appear within 10s. |
-| **Bulk Upload** | Upload 20 photos at once. | Analysis should process sequentially. **Log should show only 1 "Loading Model" event** (Smart Batching). |
-| **Video Upload** | Upload MP4 video. | Video should play. AI should (currently) only analyze the thumbnail or basic metadata. |
-| **Camera Capture** | Use "Take Photo" button on Mobile. | Camera opens directly. Captured photo uploads successfully. |
+### 📸 Media Upload
+*   **SCENARIO**: Upload mixed content (JPG, HEIC, MP4).
+*   **EXPECTED**:
+    1.  UI shows upload progress.
+    2.  Files appear effectively immediately in `Timeline` (placeholder data).
+    3.  **Background**: Huey logs show "Processing task...".
+    4.  **Final**: After ~5-10s, photos update with AI Captions, Tags, and Faces.
+    5.  **HEIC**: Must be converted to viewing-compatible JPG automatically.
 
-### 📅 Timeline Interaction
-| Test Case | Steps | Expected Result |
-| :--- | :--- | :--- |
-| **Scroll** | Scroll down 100+ items. | Infinite scroll should load smoothly without browser lag. |
-| **Cinema Mode** | Click "Cinema Mode". | Fullscreen slideshow starts. Music plays (if enabled). |
-| **Detail View** | Click a photo. | Modal opens with Date, Location, AI Summary, and User Description. |
-
----
-
-## 2. AI Intelligence Tests
-
-### 🔍 Search Quality
-| Query Type | Example Query | Expected Behavior |
-| :--- | :--- | :--- |
-| **Exact Keyword** | "Jeju" | Returns photos with "Jeju" in location or tags. |
-| **Semantic** | "People eating happy food" | Returns photos of dining, food, smiling faces (even if "happy" word isn't present). |
-| **Hybrid** | "2023 Christmas" | Should strictly prioritize photos from December 2023 over general Christmas photos. |
-| **Negative Score** | "asdfqwer" | Should return "No results found" (Zero hits). |
-
-### 💬 Chat Assistant
-| Scenario | Action | Expected Result |
-| :--- | :--- | :--- |
-| **General Query** | "Explain this photo." | AI narrates the photo context using metadata. |
-| **Memory Recall** | "When did we go to Paris?" | AI finds "Paris" photos and answers "You went in [Date]...". |
-| **Empty Context** | "What is the capital of Mars?" | AI apologizes politely: "I can only answer about your memories." |
-| **Politeness** | Any question. | Response uses Honorifics (존댓말) and warm tone. |
+### 👤 Face Management
+*   **SCENARIO**: Merging "Unknown" faces.
+*   **STEPS**:
+    1.  Go to `Manage > Faces`.
+    2.  Find an "Unknown" cluster.
+    3.  Rename to "Test Person".
+    4.  Find another cluster of the same person. Select "Merge into Existing".
+*   **EXPECTED**: Both clusters merge into one "Test Person". All associated timeline events are effectively tagged.
 
 ---
 
-## 3. Reliability & PWA Tests
+## 2. AI Intelligence Testing
 
-### 📱 PWA Experience (Mobile)
-*   **Install**: "Add to Home Screen" creates an icon with the gold 'D' logo.
-*   **Launch**: Splash screen (`Decade Journey`) appears, then fades to Timeline.
-*   **Touch**: Tapping buttons gives visual feedback (scale down) but no gray highlight box.
+### 💬 Memory Assistant (Chat)
+*   **SCENARIO**: RAG Retrieval validation.
+*   **INPUT**: "What did we eat last Christmas?"
+*   **EXPECTED**:
+    1.  System searches Vector DB.
+    2.  Displays relevant photos alongside the answer.
+    3.  Answer acts as a "Biographer" using the retrieved context.
 
-### 🔄 Self-Healing (Disaster Recovery)
-*   **Simulation**:
-    1.  Upload 5 photos.
-    2.  Check Logs: "Processing 1/5...".
-    3.  **Kill Server** (`Ctrl+C`) immediately.
-    4.  Restart Server.
-*   **Verify**: Logs should say "Found X orphans... Re-queueing". The remaining photos should eventually get summaries.
+### 📝 Daily Interview
+*   **SCENARIO**: Question Generation & Refresh.
+*   **STEPS**:
+    1.  Check the "Daily Memory" card on Dashboard.
+    2.  **Verify**: Question is in polite Korean (no hallucinations).
+    3.  **Action**: Click "Refresh" (🔄) button.
+    4.  **Expected**: New question generates within specific context (e.g., "Why were you laughing in this photo?") without page reload (HTMX).
+
+### 🚨 Hallucination Guard (Stress Test)
+*   **SCENARIO**: Force unstable conditions (if using 3B model).
+*   **TEST**: Repeatedly generate questions.
+*   **EXPECTED**:
+    *   No Chinese/Japanese/Thai characters should appear.
+    *   Logs (`system_logs`) should show "Hallucination Detected. Retrying..." if it catches bad output.
 
 ---
 
-## 4. Performance Benchmarks
-*   **Cold Start Search**: < 5 seconds (Model Load).
-*   **Warm Search**: < 1 second.
-*   **Analysis Speed**: ~3-5 seconds per image (on M1/M2/M3 Mac).
+## 3. Resilience & Stability
+
+### 🔌 Service Interruption
+*   **SCENARIO**: Kill server during upload processing.
+*   **STEPS**:
+    1.  Upload 50 photos.
+    2.  Immediately `Ctrl+C` stop the server.
+    3.  Restart server.
+*   **EXPECTED**:
+    *   Server startup logs: "Checking for orphaned events..."
+    *   Orphans identified and re-queued.
+    *   Processing resumes and completes for all 50 photos.
+
+### 💾 Backup & Restore
+*   **SCENARIO**: Run `scripts/backup.sh`.
+*   **EXPECTED**:
+    *   Creates a `zip` of `uploads/`.
+    *   Creates a `sqlite3` backup of `decade.db`.
+    *   Creates a copy of `lancedb_data`.
+    *   Files saved to `backups/YYYY-MM-DD_...`.
+
+---
+
+## 4. Mobile Responsiveness (PWA)
+
+*   **Viewport**: Test on iPhone (Safari) and Android (Chrome).
+*   **Checks**:
+    *   "Add to Home Screen" enabled (Manifest.json present).
+    *   Status bar color matches theme (`theme-color` meta tag).
+    *   Upload button accessible on small screens.
+    *   Timeline scrolling is smooth.
