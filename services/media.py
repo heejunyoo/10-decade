@@ -9,7 +9,7 @@ pillow_heif.register_heif_opener()
 from database import get_db
 import models
 from utils.image import get_gps_from_image, extract_date_from_image, extract_timestamp_from_image
-from services.tasks import analyze_image_task
+
 try:
     from services.faces import process_faces
 except ImportError:
@@ -203,6 +203,145 @@ def process_upload_task(temp_file_path: str, original_filename: str, metadata: d
     finally:
         db.close()
 
+def generate_smart_thumbnail(event_id: int):
+    """
+    Generates a face-centered thumbnail for the event.
+    Must be called AFTER face detection.
+    """
+    print(f"🖼️ Generating Smart Thumbnail for Event {event_id}...")
+    db = next(get_db())
+    try:
+        event = db.query(models.TimelineEvent).filter(models.TimelineEvent.id == event_id).first()
+        if not event or not event.image_url:
+            return
+
+        file_path = event.image_url.lstrip("/")
+        if not os.path.exists(file_path):
+             file_path = f"static/uploads/{event.image_url.split('/')[-1]}"
+             
+        if not os.path.exists(file_path):
+            return
+
+        with Image.open(file_path) as img:
+            img = ImageOps.exif_transpose(img)
+            
+            # Standard Thumbnail Size
+            TARGET_SIZE = (500, 500)
+            
+            # Default Center (Image Center)
+            center_x = img.width / 2
+            center_y = img.height / 2
+            
+            faces = event.faces
+            if faces and len(faces) > 0:
+                # 1. Face Priority
+                import json
+                max_area = 0
+                
+                for face in faces:
+                    try:
+                        if not face.location: continue
+                        loc = json.loads(face.location)
+                        
+                        # InsightFace returns [x1, y1, x2, y2]
+                        if len(loc) >= 4:
+                            x1, y1, x2, y2 = loc[0], loc[1], loc[2], loc[3]
+                            w = abs(x2 - x1)
+                            h = abs(y2 - y1)
+                            area = w * h
+                            
+                            if area > max_area:
+                                max_area = area
+                                center_x = (x1 + x2) / 2
+                                center_y = (y1 + y2) / 2
+                    except Exception:
+                        continue
+                print(f"🎯 Smart Crop: Centering on Face at ({center_x}, {center_y})")
+
+            else:
+                # 2. Saliency Priority (U2-Net via rembg)
+                try:
+                    from rembg import remove, new_session
+                    import numpy as np
+                    
+                    print("🧠 Smart Crop: No faces, attempting Saliency Detection (U2-Net)...")
+                    # Create a session for u2netp (lightweight)
+                    session = new_session("u2netp")
+                    
+                    # Run rembg to get alpha mask (foreground) only
+                    output = remove(img, session=session, only_mask=True)
+                    mask = np.array(output)
+                    
+                    # Calculate center of mass of the mask (white pixels)
+                    y_coords, x_coords = np.nonzero(mask)
+                    
+                    if len(x_coords) > 0:
+                        center_x = np.mean(x_coords)
+                        center_y = np.mean(y_coords)
+                        print(f"🎯 Smart Crop: Centering on Saliency at ({center_x}, {center_y})")
+                    else:
+                        print("⚠️ Saliency empty, falling back to center.")
+                        
+                except ImportError:
+                    print("⚠️ rembg not installed. Skipping Smart Crop.")
+                except Exception as e:
+                    print(f"⚠️ Saliency detection failed (fallback to center): {e}")
+            
+            # Smart Crop Logic (Centering on calculate center)
+            # 1. Determine Crop Box
+            # We want 500x500 square around (center_x, center_y)
+            # But scaled to cover target size.
+            
+            # Aspect Ratio of Target
+            target_ratio = TARGET_SIZE[0] / TARGET_SIZE[1]
+            img_ratio = img.width / img.height
+            
+            if img_ratio > target_ratio:
+                # Image is wider than target
+                # Height is the constraint
+                new_height = img.height
+                new_width = int(new_height * target_ratio)
+            else:
+                # Image is taller/equal
+                # Width is the constraint
+                new_width = img.width
+                new_height = int(new_width / target_ratio)
+                
+            # Calculate Crop Box Coords
+            left = max(0, min(img.width - new_width, center_x - new_width / 2))
+            top = max(0, min(img.height - new_height, center_y - new_height / 2))
+            right = left + new_width
+            bottom = top + new_height
+            
+            # Refinement: Ensure we don't go out of bounds (clamping fixed above via min/max logic?)
+            # Actually, standard clamp:
+            if left < 0: left = 0
+            if top < 0: top = 0
+            if right > img.width: right = img.width; left = right - new_width
+            if bottom > img.height: bottom = img.height; top = bottom - new_height
+            
+            # Create Crop
+            crop = img.crop((int(left), int(top), int(right), int(bottom)))
+            
+            # Resize to Target
+            thumb = crop.resize(TARGET_SIZE, Image.Resampling.LANCZOS)
+             
+            # Save
+            filename = os.path.basename(file_path)
+            thumb_name = f"smart_thumb_{filename}"
+            thumb_rel_path = f"/static/uploads/{thumb_name}"
+            thumb_full_path = os.path.join("static/uploads", thumb_name)
+            
+            thumb.save(thumb_full_path, "JPEG", quality=85)
+            
+            event.thumbnail_url = thumb_rel_path
+            db.commit()
+            print(f"✅ Created Smart Thumbnail: {thumb_name} (Centered on {int(center_x)},{int(center_y)})")
+
+    except Exception as e:
+        print(f"❌ Smart Crop Error: {e}")
+    finally:
+        db.close()
 def regenerate_captions_for_person(person_id: int):
     """
     Refreshes AI captions for all photos containing a specific person.

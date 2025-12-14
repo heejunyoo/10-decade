@@ -59,8 +59,8 @@ WORKDIR /app
 COPY . .
 
 # Create necessary directories with permissions
-RUN mkdir -p static/uploads static/temp chroma_db && \
-    chmod 777 static/uploads static/temp chroma_db
+RUN mkdir -p static/uploads static/temp lancedb_data && \
+    chmod 777 static/uploads static/temp lancedb_data
 
 # Expose port
 EXPOSE 8000

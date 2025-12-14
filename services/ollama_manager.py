@@ -78,4 +78,50 @@ class OllamaManager:
             logger.error(f"❌ Failed to spawn Ollama: {e}")
             return False
 
+    def get_best_model(self):
+        """
+        Returns the best available model.
+        Priority: llama3.1:8b > llama3.2:3b > any other llama
+        """
+        if not self.is_running():
+            return "llama3.2:3b" # Fallback default
+            
+        try:
+            # Check what's installed
+            result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
+            output = result.stdout.lower()
+            
+            if "llama3.1:8b" in output:
+                return "llama3.1:8b"
+            elif "gemma2:9b" in output:
+                return "gemma2:9b"
+            elif "llama3.2:3b" in output:
+                return "llama3.2:3b"
+            else:
+                return "llama3.2:3b" # Default fallback
+        except Exception:
+            return "llama3.2:3b"
+
+    def ensure_model(self, model_name=None):
+        """
+        Ensures the specified model is pulled and available.
+        If no name provided, ensures the best model.
+        """
+        if not model_name:
+            model_name = self.get_best_model()
+
+        if not self.is_running():
+            return False
+            
+        try:
+            # Simple check via 'ollama list' or just try pulling (it skips if present)
+            # We use subprocess to pull in background or foreground? Foreground is safer for first run.
+            logger.info(f"Checking if model '{model_name}' is available...")
+            subprocess.run(["ollama", "pull", model_name], check=True)
+            logger.info(f"✅ Model '{model_name}' is ready.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to pull model {model_name}: {e}")
+            return False
+
 ollama_manager = OllamaManager()

@@ -55,3 +55,30 @@ def get_daily_widget(request: Request, db: Session = Depends(get_db)):
         "interaction": interaction,
         "event": interaction.event
     })
+    return templates.TemplateResponse("partials/daily_memory.html", {
+        "request": request,
+        "interaction": interaction,
+        "event": interaction.event
+    })
+
+@router.post("/daily/refresh", response_class=HTMLResponse)
+def refresh_daily_widget(request: Request, db: Session = Depends(get_db)):
+    """
+    Deletes the current daily question and generates a new one.
+    """
+    user_profile = request.cookies.get("decade_journey_profile")
+    
+    # 1. Delete existing
+    interviewer.skip_daily_question(db, user_profile=user_profile)
+    
+    # 2. Generate New
+    interaction = interviewer.get_daily_interview_question(db, user_profile=user_profile)
+    
+    if not interaction:
+        return ""
+        
+    return templates.TemplateResponse("partials/daily_memory.html", {
+        "request": request,
+        "interaction": interaction,
+        "event": interaction.event
+    })

@@ -55,8 +55,9 @@ class AIService:
                 if not ollama_manager.ensure_running():
                     return "미래의 나에게 어떤 말을 남기고 싶으신가요? (AI 연결 실패)"
 
+                model_name = ollama_manager.get_best_model()
                 response = ollama.chat(
-                    model='llama3.1', 
+                    model=model_name, 
                     messages=[
                         {'role': 'system', 'content': system_prompt},
                         {'role': 'user', 'content': user_prompt}
@@ -118,19 +119,96 @@ class AIService:
                 if not ollama_manager.ensure_running():
                     return None 
 
-                response = ollama.chat(
-                    model='llama3.1',
-                    messages=[
-                        {'role': 'system', 'content': system_prompt},
-                        {'role': 'user', 'content': user_prompt}
-                    ],
-                    options={"temperature": 0.75}
+                system_prompt = (
+                    "당신은 따뜻한 한국인 AI 비서입니다. 주어진 사진 정보를 보고 자연스러운 한국어 질문을 하나만 하세요.\n"
+                    "다른 언어 절대 금지. 오직 한국어만 사용.\n\n"
+                    "예시:\n"
+                    "정보: 날짜=2023-01-01, 설명=가족 식사\n"
+                    "질문: 새해 첫날 가족들과 나누신 대화가 기억나시나요?\n\n"
+                    "정보: 날짜=2019-08-15, 설명=해변의 아이들\n"
+                    "질문: 아이들이 정말 신나 보이네요! 이날 물놀이는 즐거우셨나요?\n"
                 )
-                return response['message']['content'].strip('" ')
+                
+                # Simple User Prompt
+                user_prompt = (
+                    f"정보: 날짜={date_str}, 장소={location}, 설명={caption}\n"
+                    "질문:"
+                )
 
+                # Self-Correction Loop (Max 3 attempts)
+                max_retries = 3
+                for attempt in range(max_retries):
+                    model_name = ollama_manager.get_best_model()
+                    response = ollama.chat(
+                        model=model_name, 
+                        messages=[
+                            {'role': 'system', 'content': system_prompt},
+                            {'role': 'user', 'content': user_prompt}
+                        ],
+                        options={
+                            "temperature": 0.7, # Increased freedom as requested
+                            "repeat_penalty": 1.1, # Slightly relaxed
+                            "top_p": 0.9
+                        }
+                    )
+                    
+                    response_text = response['message']['content'].strip('" ')
+                    
+                    # Validation
+                    if self._is_contaminated(response_text):
+                        logger.warning(f"⚠️ Attempt {attempt+1} failed (Hallucination): {response_text}. Retrying...")
+                        continue # Try again
+                    
+                    # Success
+                    return response_text
+
+                # If all retries fail, use fallback
+                logger.error("❌ All AI attempts failed integrity check. Using fallback.")
+                return self._get_fallback_question()
+            
         except Exception as e:
             logger.error(f"Failed to generate interview question: {e}")
-            return None
+            return self._get_fallback_question()
+
+    def _is_contaminated(self, text: str) -> bool:
+        """
+        Robustly checks if the text contains hallucinated scripts.
+        Blocks: Japanese, Chinese, Cyrillic, Thai, Arabic, Devanagari, Greek, Hebrew.
+        Allows: Korean, English (ASCII), Punctuation, Emojis.
+        """
+        import re
+        
+        # Deny-list of Unicode ranges often hallucinated by Llama-3B
+        # \u3040-\u30FF: Japanese (Hiragana/Katakana)
+        # \u4E00-\u9FFF: Chinese (CJK Unified Ideographs)
+        # \u0400-\u04FF: Cyrillic (Russian)
+        # \u0E00-\u0E7F: Thai
+        # \u0600-\u06FF: Arabic
+        # \u0900-\u097F: Devanagari (Hindi)
+        # \u0370-\u03FF: Greek
+        # \u0590-\u05FF: Hebrew
+        unsafe_pattern = re.compile(r'[\u3040-\u30FF\u4E00-\u9FFF\u0400-\u04FF\u0E00-\u0E7F\u0600-\u06FF\u0900-\u097F\u0370-\u03FF\u0590-\u05FF]')
+        
+        # Specific token blacklists (hallucination artifacts)
+        blacklist_tokens = ["-san", "-kun", "xiezhen", "shen", "chan", "desu"]
+        text_lower = text.lower()
+        for token in blacklist_tokens:
+            if token in text_lower:
+                return True
+            
+        return bool(unsafe_pattern.search(text))
+
+    def _get_fallback_question(self) -> str:
+        """ Returns a safe, pre-defined Korean question. """
+        import random
+        templates = [
+            "이 사진을 다시 보니 어떤 기분이 드시나요?",
+            "이때 가장 기억에 남는 에피소드가 있다면 알려주세요.",
+            "사진 속 분위기가 참 좋네요! 어떤 상황이었나요?",
+            "함께한 분들과 어떤 이야기를 나누셨는지 기억나시나요?",
+            "이 순간으로 다시 돌아간다면 무엇을 하고 싶으신가요?"
+        ]
+        return random.choice(templates)
 
 # Singleton
 ai_service = AIService()

@@ -1,0 +1,4 @@
+$58a334e2-22dc-4c23-b431-616f1491c4b1²·"id ÿÿÿÿÿÿÿÿÿ*string8Zdefault>vector ÿÿÿÿÿÿÿÿÿ*fixed_size_list:float:102408Zdefault&text ÿÿÿÿÿÿÿÿÿ*string8Zdefault&date ÿÿÿÿÿÿÿÿÿ*string8Zdefault*location ÿÿÿÿÿÿÿÿÿ*string8Zdefault,
+media_type ÿÿÿÿÿÿÿÿÿ*string8Zdefault+	image_url ÿÿÿÿÿÿÿÿÿ*string8Zdefault.payload_json ÿÿÿÿÿÿÿÿÿ*string8Zdefault"'
+lance.auto_cleanup.older_than14days"!
+lance.auto_cleanup.interval20

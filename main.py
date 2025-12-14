@@ -43,16 +43,38 @@ pillow_heif.register_heif_opener()
 # Application Lifecycle
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Launch AI Worker (Queue Processor)
-    tasks.start_worker()
+    # Startup: Launch AI Worker (Huey Consumer)
+    # We run it as a subprocess to bypass GIL while keeping "One Command Run" convenience.
+    import subprocess
+    import sys
+    
+    print("🚀 Starting Huey Consumer (Background AI Worker)...")
+    
+    # Run huey consumer: python -m huey.bin.huey_consumer services.tasks.huey
+    # -w 1: One worker process (enough for personal use)
+    # -k thread: Threading worker (SQLite friendly)
+    huey_process = subprocess.Popen(
+        [sys.executable, "-m", "huey.bin.huey_consumer", "services.tasks.huey", "-w", "1", "-k", "thread"],
+        env=os.environ.copy()
+    )
+
+    # Self-Healing: Check for interrupted tasks
+    tasks.reprocess_orphans()
     
     # Startup: Preload AI Models (Blocking Main Thread) -> Safer for macOS
-    if config.get("ai_provider") == "local":
-        print("⏳ Preloading AI Models (Main Thread)...")
-        preload_models.preload()
+    # if config.get("ai_provider") == "local":
+    #    print("⏳ Preloading AI Models skipped (Lazy Loading Enabled)...")
+    #    # preload_models.preload()
     
     yield
-    # Shutdown logic if needed
+    
+    # Shutdown logic
+    print("🛑 Shutting down Huey Consumer...")
+    huey_process.terminate()
+    try:
+        huey_process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        huey_process.kill()
 
 # Create Database Tables
 models.Base.metadata.create_all(bind=engine)

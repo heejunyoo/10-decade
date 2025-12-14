@@ -138,4 +138,28 @@ def submit_answer(db: Session, interaction_id: int, answer: str):
     # "Memory Note: ..."
     
     db.commit()
+    db.commit()
     return True
+
+def skip_daily_question(db: Session, user_profile: str = None):
+    """
+    Deletes the current unanswered question for today so a new one can be generated.
+    """
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    query = db.query(models.MemoryInteraction).filter(
+        models.MemoryInteraction.created_at >= today_start,
+        models.MemoryInteraction.is_answered == 0
+    )
+    
+    if user_profile:
+        query = query.filter(models.MemoryInteraction.author == user_profile)
+    else:
+        query = query.filter(models.MemoryInteraction.author == None)
+        
+    existing = query.first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return True
+    return False

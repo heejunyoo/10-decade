@@ -56,24 +56,17 @@ class VisionService:
                 # Fallbck logic could go here, but for now return minimal
                 return {"tags": [], "summary": None, "mood": None}
         else:
-            # Local (Florence-2)
+            # Local (Qwen)
             from services.analyzer import analyzer
-            tags, caption = analyzer.analyze_full(image_path, names)
             
-            # Local Verification
-            try:
-                from services.verifier import verifier
-                if caption:
-                    score = verifier.verify(caption)
-                    if score < 0.6:
-                         caption = f"[Low Confidence] {caption}"
-            except:
-                pass
-                
+            # Use the new analyze_scene which handles its own prompt execution
+            result = analyzer.analyze_scene(image_path, names)
+            
             return {
-                "tags": tags,
-                "summary": caption,
-                "mood": None # Local analyzer doesn't support mood yet
+                "tags": result.get("tags", []),
+                "summary": result.get("summary"),
+                "mood": result.get("mood"),
+                "ocr": result.get("ocr", "")
             }
 
     def generate_caption(self, image_path: str, names: list[str] = None) -> str:

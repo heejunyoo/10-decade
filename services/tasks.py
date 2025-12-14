@@ -1,59 +1,33 @@
-import queue
-import threading
-import time
 import os
-from sqlalchemy.orm import Session
+import time
+from huey import SqliteHuey
+from services.logger import get_logger
 from database import get_db
 import models
-from services.logger import get_logger
 
 logger = get_logger("tasks")
 
-# Global Queue for AI Tasks
-analysis_queue = queue.Queue()
+# Initialize Huey with SQLite backend
+# This creates a local file 'decade_ops.db' for the queue
+huey = SqliteHuey(filename='decade_ops.db')
 
-def worker():
-    """
-    Background worker thread that consumes events from the queue and runs AI analysis.
-    This ensures uploads are fast (just IO) while AI runs sequentially in background.
-    """
-    logger.info("⚙️ Background Worker: Ready (Optimization)")
-    while True:
-        try:
-            event_id = analysis_queue.get()
-            if event_id is None: # Sentinel to stop
-                break
-            
-            # Artificial small delay to let DB commit fully propagate if needed
-            # (though queue put happens after commit usually)
-            time.sleep(0.5)
-            
-            process_ai_for_event(event_id)
-            
-        except Exception as e:
-            logger.error(f"Worker Thread Error: {e}")
-        finally:
-            analysis_queue.task_done()
-
-def start_worker():
-    t = threading.Thread(target=worker, daemon=True)
-    t.start()
-
-def enqueue_event(event_id: int):
-    logger.info(f"Queued Event {event_id} for AI analysis")
-    analysis_queue.put(event_id)
-
+@huey.task()
 def process_ai_for_event(event_id: int):
     """
-    Full AI Pipeline for a single event:
-    1. Face Recognition
-    2. Tag Analysis
-    3. Caption Generation (BLIP)
-    4. Context Enrichment (Location/Weather)
+    Full AI Pipeline for a single event (Huey Task).
+    This runs in a separate process managed by the Huey consumer.
     """
-    db = next(get_db())
+    logger.info(f"🚀 [Huey] Starting AI Analysis for Event {event_id}")
+    
+    # Database Session Management
+    # Since we are in a separate process, we need a fresh DB session
+    # get_db is a generator, so we need to handle it manually
+    db_gen = get_db()
+    db = next(db_gen)
+    
     try:
-    # Lazy imports to minimize startup time
+        # Lazy imports to minimize startup time of the main web process
+        # But for the worker process, they will be loaded once and cached
         try:
             from services.vision import vision_service
             from services.faces import process_faces
@@ -66,17 +40,15 @@ def process_ai_for_event(event_id: int):
             context_service = None
             memory_vector_store = None
             
+            # Helper to try importing individually
             try: from services.vision import vision_service
-            except ImportError: pass
-            
+            except: pass
             try: from services.faces import process_faces
-            except ImportError: pass
-            
+            except: pass
             try: from services.context import context_service
-            except ImportError: pass
-            
+            except: pass
             try: from services.rag import memory_vector_store
-            except ImportError: pass
+            except: pass
 
         event = db.query(models.TimelineEvent).filter(models.TimelineEvent.id == event_id).first()
         if not event:
@@ -103,33 +75,49 @@ def process_ai_for_event(event_id: int):
             except Exception as e:
                 logger.error(f"Face error: {e}")
 
-        # 2 & 3. Scene Analysis (Tags + Caption) - Optimized Single Pass
-        if vision_service and event.media_type == "photo":
-            try:
-                analysis_result = vision_service.analyze_scene(file_path, names=found_names)
-                
-                tags = analysis_result.get("tags", [])
-                caption = analysis_result.get("summary")
-                mood = analysis_result.get("mood")
-                
-                # Update Tags
-                if tags:
-                    existing_tags = [t.strip() for t in event.tags.split(',')] if event.tags else []
-                    all_tags = list(set(existing_tags + tags))
-                    event.tags = ",".join(all_tags)
-                    logger.info(f"Tags: {tags}")
-                
-                # Update Caption
-                if caption:
-                    event.summary = caption
-                    logger.info(f"Caption: {caption}")
-                
-                # Update Mood (if model supports it)
-                if mood:
-                     event.mood = mood
-                     logger.info(f"Mood: {mood}")
+        # 1.5 Smart Cropping (Use faces to improve thumbnail)
+        try:
+             from services.media import generate_smart_thumbnail
+             logger.info("🎨 Refining Thumbnail (Smart Crop)...")
+             generate_smart_thumbnail(event.id)
+        except Exception as e:
+             logger.error(f"Thumb error: {e}")
 
-                db.commit()
+        # 2 & 3. Scene Analysis (Tags + Caption)
+        if vision_service:
+            try:
+                analysis_result = None
+                
+                if event.media_type == "photo":
+                    analysis_result = vision_service.analyze_scene(file_path, names=found_names)
+                elif event.media_type == "video":
+                    # Video Intelligence (Tri-Frame)
+                    logger.info("🎥 Starting Video Analysis...")
+                    analysis_result = vision_service.analyze_video(file_path)
+                
+                if analysis_result:
+                    tags = analysis_result.get("tags", [])
+                    caption = analysis_result.get("summary")
+                    mood = analysis_result.get("mood")
+                    
+                    # Update Tags
+                    if tags:
+                        existing_tags = [t.strip() for t in event.tags.split(',')] if event.tags else []
+                        all_tags = list(set(existing_tags + tags))
+                        event.tags = ",".join(all_tags)
+                        logger.info(f"Tags: {tags}")
+                    
+                    # Update Caption
+                    if caption:
+                        event.summary = caption
+                        logger.info(f"Caption: {caption}")
+                    
+                    # Update Mood
+                    if mood:
+                         event.mood = mood
+                         logger.info(f"Mood: {mood}")
+    
+                    db.commit()
             except Exception as e:
                 logger.error(f"Scene Analysis error: {e}")
 
@@ -144,7 +132,7 @@ def process_ai_for_event(event_id: int):
         # 5. RAG Indexing
         if memory_vector_store:
              try:
-                 logger.info("Indexing to ChromaDB...")
+                 logger.info("Indexing to Vector DB...")
                  memory_vector_store.add_events([event])
              except Exception as e:
                  logger.error(f"RAG Indexing error: {e}")
@@ -159,24 +147,30 @@ def process_ai_for_event(event_id: int):
         except Exception as e:
              logger.error(f"Grouping error: {e}")
 
-        logger.info(f"Finished AI Analysis for Event {event_id}")
+        logger.info(f"✅ Finished AI Analysis for Event {event_id}")
 
     except Exception as e:
         logger.error(f"Fatal error in process_ai_for_event: {e}")
     finally:
+        # Close the session!
         db.close()
 
-# Keep legacy function if imported elsewhere, or redirect
-def analyze_image_task(event_id: int):
-    enqueue_event(event_id)
+def enqueue_event(event_id: int):
+    """
+    Enqueues the event analysis task.
+    Now uses Huey to send to background process.
+    """
+    logger.info(f"📥 Enqueuing Event {event_id} to Huey")
+    process_ai_for_event(event_id)
 
+@huey.task()
 def process_caption_update(event_id: int):
     """
-    Updates ONLY the caption (summary) for an event, using existing faces.
-    Used when a person is renamed, to reflect the new name in the caption without re-running expensive face detection.
+    Updates ONLY the caption (summary) for an event.
     """
-    logger.info(f"Updating Caption for Event {event_id}...")
-    db = next(get_db())
+    logger.info(f"🚀 [Huey] Updating Caption for Event {event_id}")
+    db_gen = get_db()
+    db = next(db_gen)
     try:
         from services.vision import vision_service
         from services.rag import memory_vector_store
@@ -222,3 +216,46 @@ def process_caption_update(event_id: int):
         logger.error(f"Error in process_caption_update: {e}")
     finally:
         db.close()
+
+# Legacy / Compatibility methods
+def start_worker():
+    """
+    No-op: Huey handles the worker.
+    But we could print a warning if this is called.
+    """
+    logger.info("ℹ️ Huey is enabled. Ensure you run the consumer: `huey_consumer.py services.tasks.huey`")
+
+def reprocess_orphans():
+    """
+    Finds events that were uploaded but not analyzed (server crash, etc.)
+    and re-enqueues them.
+    Logic: (media_type='photo' OR media_type='video') AND summary IS NULL
+    """
+    logger.info("🚑 Checking for Orphaned Events (Incomplete Analysis)...")
+    db_gen = get_db()
+    db = next(db_gen)
+    
+    try:
+        from sqlalchemy import or_
+        
+        # Find Orphans (Photos OR Videos)
+        orphans = db.query(models.TimelineEvent).filter(
+            or_(models.TimelineEvent.media_type == "photo", models.TimelineEvent.media_type == "video"),
+            models.TimelineEvent.summary == None
+        ).all()
+        
+        if not orphans:
+            logger.info("✅ No orphans found. System healthy.")
+            return
+            
+        logger.info(f"⚠️ Found {len(orphans)} orphans. Rescuing...")
+        
+        for event in orphans:
+            logger.info(f"🚑 Re-enqueuing Event {event.id}...")
+            enqueue_event(event.id) # Use enqueue wrapper to use Huey
+            
+    except Exception as e:
+        logger.error(f"Failed to reprocess orphans: {e}")
+    finally:
+        db.close()
+

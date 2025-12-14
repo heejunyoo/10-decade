@@ -11,7 +11,15 @@
         <input type="date" name="date">
 
         <label>Photos & Videos (Select Multiple)</label>
-        <input type="file" name="files" multiple accept="image/*,video/*" id="fileInput">
+        <div class="file-inputs">
+            <input type="file" name="files" multiple accept="image/*,video/*" id="fileInput" class="hidden-input">
+            <label for="fileInput" class="file-btn gallery-btn">🖼️ Select from Gallery</label>
+
+            <input type="file" name="files" accept="image/*" capture="environment" id="cameraInput"
+                class="hidden-input">
+            <label for="cameraInput" class="file-btn camera-btn">📸 Take Photo</label>
+        </div>
+        <p id="fileCount" class="file-count"></p>
 
         <label>Title (Optional)</label>
         <input type="text" name="title" placeholder="e.g. 1주년 여행">
@@ -36,6 +44,49 @@
         padding-top: 100px;
     }
 
+    .file-inputs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .hidden-input {
+        display: none;
+    }
+
+    .file-btn {
+        flex: 1;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        font-weight: bold;
+        transition: transform 0.1s;
+        border: 2px solid transparent;
+    }
+
+    .file-btn:active {
+        transform: scale(0.96);
+    }
+
+    .gallery-btn {
+        background: #f0f0f0;
+        color: #333;
+        border-color: #ddd;
+    }
+
+    .camera-btn {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .file-count {
+        font-size: 0.9rem;
+        color: var(--accent-color);
+        margin-bottom: 1rem;
+        font-weight: bold;
+    }
+
     .back-link {
         display: block;
         text-align: center;
@@ -43,6 +94,7 @@
         color: var(--primary-color);
     }
 
+    /* ... existing alert/progress styles ... */
     .alert {
         padding: 1rem;
         background: #d4edda;
@@ -73,17 +125,34 @@
 <script>
     const form = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
+    const cameraInput = document.getElementById('cameraInput');
+    const fileCount = document.getElementById('fileCount');
     const progressBar = document.getElementById('progressBar');
     const progressContainer = document.getElementById('progressContainer');
     const statusText = document.getElementById('statusText');
     const submitBtn = document.getElementById('submitBtn');
 
+    function updateCount() {
+        const gCount = fileInput.files.length;
+        const cCount = cameraInput.files.length;
+        const total = gCount + cCount;
+        if (total > 0) {
+            fileCount.innerText = `${total} files selected`;
+        } else {
+            fileCount.innerText = "";
+        }
+    }
+
+    fileInput.addEventListener('change', updateCount);
+    cameraInput.addEventListener('change', updateCount);
+
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const files = fileInput.files;
-        if (files.length === 0) {
-            alert("Please select at least one file.");
+        // Validate Total Files
+        const totalFiles = fileInput.files.length + cameraInput.files.length;
+        if (totalFiles === 0) {
+            alert("Please select or take at least one photo.");
             return;
         }
 
@@ -103,7 +172,7 @@
                 const percentComplete = Math.round((e.loaded / e.total) * 100);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
-                statusText.innerText = `Uploading ${files.length} files... (${percentComplete}%)`;
+                statusText.innerText = `Uploading ${totalFiles} files... (${percentComplete}%)`;
             }
         };
 
