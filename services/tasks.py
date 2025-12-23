@@ -154,6 +154,9 @@ def process_ai_for_event(event_id: int):
     finally:
         # Close the session!
         db.close()
+        # RATE LIMIT THROTTLE:
+        # Gemini Free Tier is ~15 RPM.
+        time.sleep(5)
 
 def enqueue_event(event_id: int):
     """
@@ -197,7 +200,11 @@ def process_caption_update(event_id: int):
         # 2. Generate Caption
         if vision_service:
             try:
-                caption = vision_service.generate_caption(file_path, names=found_names)
+                # Force Flash model dynamically for bulk updates to avoid Rate Limits
+                from services.gemini import gemini_service
+                flash_model = gemini_service.get_flash_model_name()
+                
+                caption = vision_service.generate_caption(file_path, names=found_names, model_name=flash_model)
                 if caption:
                     event.summary = caption
                     db.commit()
@@ -216,6 +223,11 @@ def process_caption_update(event_id: int):
         logger.error(f"Error in process_caption_update: {e}")
     finally:
         db.close()
+        # RATE LIMIT THROTTLE:
+        # Gemini Free Tier is ~15 RPM.
+        # This worker process runs sequentially. To be safe, we sleep 5s after every task.
+        # This limits us to max 12 tasks/min, keeping us safe.
+        time.sleep(5)
 
 # Legacy / Compatibility methods
 def start_worker():

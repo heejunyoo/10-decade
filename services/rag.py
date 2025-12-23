@@ -190,15 +190,116 @@ class MemoryVectorStore:
 
     def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
         from services.config import config
-        provider = config.get("ai_provider")
         
-        # Route Query
-        if provider == "gemini":
-            print(f"🔍 Searching Gemini Brain for: {query}")
-            return self._search_gemini(query, k)
-        else:
-            print(f"🔍 Searching Local Brain for: {query}")
-            return self._search_local(query, k)
+        # Determine Mode: check explicit overrides, otherwise default to "ensemble" if key exists
+        search_provider = config.get("search_provider") # 'local', 'gemini', or None
+        has_gemini = bool(config.get("gemini_api_key"))
+        
+        # 1. Force Local
+        if search_provider == "local" or (not has_gemini and not search_provider):
+             print(f"🔍 Searching Local Brain (BGE-M3) for: {query}")
+             return self._search_local(query, k)
+             
+        # 2. Force Gemini
+        if search_provider == "gemini":
+             print(f"🔍 Searching Gemini Brain for: {query}")
+             return self._search_gemini(query, k)
+             
+        # 3. Default: Ensemble (Dual) - Best of Both Worlds
+        print(f"🧠 Dual-Search (Ensemble): Local + Gemini for '{query}'")
+        return self._search_ensemble(query, k)
+
+    def _search_ensemble(self, query: str, k: int) -> List[Dict[str, Any]]:
+        """
+        Combines results from Local (BGE-M3) and Gemini using Reciprocal Rank Fusion (RRF).
+        Then assumes RERANKING via Gemini Flash to filter out 'sticky' irrelevant results.
+        """
+        # 1. Retrieval (High Recall)
+        # Fetch more candidates to allow reranking (3x k) to cast a wide net
+        candidates_k = k * 3
+        results_local = self._search_local(query, candidates_k) 
+        results_gemini = self._search_gemini(query, candidates_k)
+        
+        # 2. RRF Fusion
+        k_rrf = 60 
+        scores = {}
+        metadata_map = {}
+        
+        for rank, item in enumerate(results_local):
+            doc_id = item['id']
+            scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (rank + k_rrf))
+            metadata_map[doc_id] = item
+            
+        for rank, item in enumerate(results_gemini):
+            doc_id = item['id']
+            scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (rank + k_rrf))
+            if doc_id not in metadata_map: 
+                metadata_map[doc_id] = item
+            
+        # Top Candidates from RRF
+        sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+        top_candidates = [metadata_map[doc_id] for doc_id in sorted_ids[:candidates_k]] # Keep pool large for LLM
+        
+        # 3. LLM Reranking (Precision)
+        # Use Gemini Flash to filter out noise (like the persistent 'sticky' images)
+        print(f"🧠 Reranking {len(top_candidates)} candidates via Gemini...")
+        return self._rerank_with_llm(query, top_candidates, k)
+
+    def _rerank_with_llm(self, query: str, candidates: List[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
+        from services.gemini import gemini_service
+        try:
+            # Construct Prompt
+            candidates_text = ""
+            for i, c in enumerate(candidates):
+                # Optimize text for token usage
+                meta_str = f"Date: {c['metadata'].get('date')}, Location: {c['metadata'].get('location')}"
+                snippet = c['text'][:200].replace('\n', ' ')
+                candidates_text += f"[{i}] ID: {c['id']} | {meta_str} | Content: {snippet}\n"
+
+            prompt = (
+                f"User Query: {query}\n\n"
+                f"Candidate Memories:\n{candidates_text}\n\n"
+                "Task: Select the most relevant memories for the query. \n"
+                "Rules:\n"
+                "1. STRICTLY ignore memories that conflict with the query (e.g. wrong location, wrong year).\n"
+                "2. If the query specifies a place (e.g. 'China'), reject items from other places (e.g. 'Korea').\n"
+                "3. Rank them by relevance (Most relevant first).\n"
+                "4. Return ONLY a JSON list of indices, e.g. [0, 4, 2]. Return at most 5 indices.\n"
+                "5. If no relevant memories found, return []."
+            )
+
+            # Call Gemini (Flash is preferred for speed and rate limits)
+            # Explicitly request dynamically found Flash model to avoid consuming Pro quota (2 RPM)
+            flash_model = gemini_service.get_flash_model_name()
+            
+            response_text = gemini_service.chat_query(
+                "You are a search ranking assistant. Output JSON only.", 
+                prompt, 
+                temperature=0.0,
+                model_name=flash_model
+            )
+            
+            import json
+            import re
+            
+            # Extract JSON
+            match = re.search(r"\[.*\]", response_text, re.DOTALL)
+            if match:
+                selected_indices = json.loads(match.group(0))
+                reranked_results = []
+                for idx in selected_indices:
+                    if 0 <= idx < len(candidates):
+                        reranked_results.append(candidates[idx])
+                
+                print(f"   ↳ LLM Selected {len(reranked_results)} relevant memories.")
+                return reranked_results[:top_k]
+            else:
+                print("   ⚠️ LLM Reranking failed to parse JSON. Falling back to RRF.")
+                return candidates[:top_k]
+
+        except Exception as e:
+            print(f"   ⚠️ LLM Reranking Error: {e}. Falling back to RRF.")
+            return candidates[:top_k]
 
     def _search_local(self, query: str, k: int):
         # ... logic from previous search() using self.table_local and Embedder ...
@@ -221,7 +322,7 @@ class MemoryVectorStore:
             if re.search(r"\b(19|20)\d{2}\b", query_text): alpha_vector = 0.1
             if any(w in query_text for w in ["행복", "happy", "summer", "winter"]): alpha_vector = 0.9 # Add seasons
             
-            results = table.search(vector).limit(k * 4).to_list()
+            results = table.search(vector).limit(k * 2).to_list()
             hits = []
             
             keywords = [w.lower() for w in query_text.split() if len(w) > 1]
@@ -230,7 +331,8 @@ class MemoryVectorStore:
                 dist = r.get('_distance', 0.0)
                 vector_score = 1.0 - (dist / 2.0)
                 
-                if vector_score < 0.3 and alpha_vector > 0.5: continue # Slightly stricter? No, keep loose
+                # Relaxed threshold for candidate generation
+                # if vector_score < 0.3 and alpha_vector > 0.5: continue 
                 
                 keyword_matches = sum(1 for kw in keywords if kw in r["text"].lower())
                 keyword_score = min(keyword_matches * 0.3, 1.0)
@@ -247,7 +349,7 @@ class MemoryVectorStore:
                 })
             
             hits.sort(key=lambda x: x["score"], reverse=True)
-            return hits[:k]
+            return hits
         except Exception as e:
             print(f"Search Error: {e}")
             return []

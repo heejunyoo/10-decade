@@ -69,7 +69,7 @@ class VisionService:
                 "ocr": result.get("ocr", "")
             }
 
-    def generate_caption(self, image_path: str, names: list[str] = None) -> str:
+    def generate_caption(self, image_path: str, names: list[str] = None, model_name: str = None) -> str:
         """
         Routes caption generation to the active provider.
         """
@@ -78,7 +78,7 @@ class VisionService:
         caption = ""
         if provider == "gemini":
             from services.gemini import gemini_service
-            caption = gemini_service.generate_caption(image_path, names)
+            caption = gemini_service.generate_caption(image_path, names, model_name=model_name)
         else:
              # Local (Florence-2)
             from services.analyzer import analyzer

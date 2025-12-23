@@ -47,8 +47,12 @@
             <!-- Loading State -->
             <div x-show="isLoading" class="dm-message-row ai">
                 <div class="dm-avatar">✨</div>
-                <div class="dm-bubble loading">
-                    Thinking... <span class="typing-cursor">|</span>
+                <div class="dm-bubble loading-bubble">
+                    <div class="premium-loader">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
                 </div>
             </div>
 
@@ -279,20 +283,56 @@
         border-top-right-radius: 4px;
     }
 
-    /* Loading Animation */
-    .dm-bubble.loading {
-        color: #888;
-        font-style: italic;
-        background: #fafafa;
+    /* Premium Loading Animation */
+    .dm-bubble.loading-bubble {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
     }
 
-    .typing-cursor {
-        animation: blink 1s infinite;
+    .premium-loader {
+        display: flex;
+        gap: 8px;
+        padding: 1rem 1.5rem;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.02);
     }
 
-    @keyframes blink {
-        50% {
-            opacity: 0;
+    .premium-loader span {
+        width: 8px;
+        height: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        animation: pulse-dot 1.4s infinite ease-in-out both;
+    }
+
+    .premium-loader span:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+
+    .premium-loader span:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    .premium-loader span:nth-child(3) {
+        animation-delay: 0s;
+    }
+
+    @keyframes pulse-dot {
+
+        0%,
+        80%,
+        100% {
+            transform: scale(0);
+            opacity: 0.5;
+        }
+
+        40% {
+            transform: scale(1);
+            opacity: 1;
         }
     }
 

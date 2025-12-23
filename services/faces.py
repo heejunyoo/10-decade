@@ -285,22 +285,25 @@ def process_faces(event_id: int):
                 # Crop logic
                 top, right, bottom, left = bbox
                 
-                # Ensure valid crop (bound within image)
+                # 1. Expand Face Crop (Add 20% Context) creates better emotion recognition
                 h, w, _ = img.shape
-                top = max(0, top)
-                left = max(0, left)
-                bottom = min(h, bottom)
-                right = min(w, right)
+                face_h = bottom - top
+                face_w = right - left
+                margin_h = int(face_h * 0.2)
+                margin_w = int(face_w * 0.2)
                 
-                if (bottom - top) > 20 and (right - left) > 20: # Min 20x20
+                top = max(0, top - margin_h)
+                left = max(0, left - margin_w)
+                bottom = min(h, bottom + margin_h)
+                right = min(w, right + margin_w)
+                
+                if (bottom - top) > 20 and (right - left) > 20: 
                    face_crop = img[top:bottom, left:right]
                    
                    # DeepFace expects BGR (cv2 default) or RGB.
-                   # It handles standard numpy arrays.
                    from deepface import DeepFace
                    
-                   # Optimize: Only load Emotion model, skip others
-                   # detector_backend='skip' ensures it just processes the crop
+                   # Optimize: Only load Emotion model
                    analysis = DeepFace.analyze(
                        face_crop, 
                        actions=['emotion'], 
@@ -312,8 +315,27 @@ def process_faces(event_id: int):
                    if isinstance(analysis, list):
                        analysis = analysis[0]
                        
-                   dominant_emotion = analysis.get('dominant_emotion')
-                   # logger.info(f"   🎭 Emotion detected: {dominant_emotion}")
+                   # 2. Smart Emotion Heuristic (Positivity Bias)
+                   # Fix "smiling faces detected as sad/neutral"
+                   raw_emotions = analysis.get('emotion', {})
+                   dominant = analysis.get('dominant_emotion')
+                   
+                   happy_score = raw_emotions.get('happy', 0.0)
+                   sad_score = raw_emotions.get('sad', 0.0)
+                   neutral_score = raw_emotions.get('neutral', 0.0)
+                   
+                   # Rule: If happy is significant (> 30%), force Happy.
+                   # Justification: Smiling is a distinct active feature.
+                   if happy_score > 30.0:
+                       dominant_emotion = 'happy'
+                       # logger.info(f"   🎭 Smart Emotion: Forced HAPPY (Score: {happy_score:.1f}%)")
+                   elif dominant == 'sad' and (happy_score + neutral_score) > sad_score:
+                       # Rule: If sad is dominant but weak against Happy+Neutral, fallback to Neutral
+                       dominant_emotion = 'neutral'
+                   else:
+                       dominant_emotion = dominant
+                       
+                   # logger.info(f"   🎭 Emotion: {dominant_emotion} (Raw: {raw_emotions})")
                    
             except ImportError:
                  logger.warning("DeepFace not installed. Skipping emotion analysis.")

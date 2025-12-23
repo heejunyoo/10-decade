@@ -34,7 +34,24 @@ class GeminiService:
                 self.refresh_best_model()
                 model = config.get("gemini_model")
         
-        return model or self.fallback_model_name or "gemini-flash"
+        return model or self.fallback_model_name
+
+    def get_flash_model_name(self):
+        """
+        Returns the dynamically discovered Flash/Fallback model name.
+        Used for high-volume tasks to avoid rate limits on Pro models.
+        """
+        if not self.fallback_model_name:
+             # Force discovery if missing
+             if self._configure():
+                 self.refresh_best_model()
+
+        if not self.fallback_model_name:
+            print("❌ Critical: No Flash model found via API discovery.")
+            # If we absolutely cannot find one, we stop. User wants NO guessing.
+            return None
+             
+        return self.fallback_model_name
 
     def refresh_best_model(self):
         """
@@ -103,6 +120,7 @@ class GeminiService:
         retry=retry_if_exception_type(ResourceExhausted),
         wait=wait_exponential(multiplier=2, min=2, max=60),
         stop=stop_after_attempt(5),
+        reraise=True,
         before_sleep=lambda retry_state: print(f"⚠️ Rate limit hit. Retrying in {retry_state.next_action.sleep} seconds... (Attempt {retry_state.attempt_number})")
     )
     def _generate_safe(self, model, content, stream=False):
@@ -163,7 +181,7 @@ class GeminiService:
             print(f"❌ Gemini Tagging Error: {e}")
             return []
 
-    def generate_caption(self, image_path: str, names: list[str] = None) -> str:
+    def generate_caption(self, image_path: str, names: list[str] = None, model_name: str = None) -> str:
         """
         Generates a detailed caption using Gemini.
         If names are provided, integrates them.
@@ -172,8 +190,10 @@ class GeminiService:
             return None
 
         try:
-            model_name = self._get_model_name()
-            model = genai.GenerativeModel(model_name)
+            target_model = model_name or self._get_model_name()
+            # No need to instantiate model here, _generate_content_with_fallback does it via get_model helper
+            # But wait, Helper logic in _generate_content_with_fallback uses `genai.GenerativeModel(name)`
+            
             img = Image.open(image_path)
             
             people_context = ""
@@ -189,14 +209,14 @@ class GeminiService:
                 "Also provide a Korean translation of the description on a new line starting with '🇰🇷 '."
             )
             
-            response = self._generate_content_with_fallback(model_name, [prompt, img])
+            response = self._generate_content_with_fallback(target_model, [prompt, img])
             return response.text.strip()
             
         except Exception as e:
             print(f"❌ Gemini Caption Error: {e}")
             return None
 
-    def chat_query(self, system_prompt: str, user_prompt: str, temperature: float = 0.7) -> str:
+    def chat_query(self, system_prompt: str, user_prompt: str, temperature: float = 0.7, model_name: str = None) -> str:
         """
         Handles chat queries using Gemini.
         """
@@ -204,10 +224,10 @@ class GeminiService:
             return "Gemini API Key is missing. Please set GEMINI_API_KEY in .env or configure in Settings."
 
         try:
-            model_name = self._get_model_name()
+            target_model = model_name or self._get_model_name()
             # Pass generation config for creativity control
             model = genai.GenerativeModel(
-                model_name, 
+                target_model, 
                 generation_config=genai.types.GenerationConfig(temperature=temperature)
             )
             full_prompt = f"{system_prompt}\n\n{user_prompt}"

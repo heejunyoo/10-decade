@@ -39,11 +39,10 @@ def reindex_safely():
             processed += len(chunk)
             
             # Rate Limiting Sleep
-            # Free Tier: ~15 RPM for some endpoints, Embeddings often higher but let's be safe.
+            # Free Tier (Flash) is 15 RPM for some endpoints.
             # Processing 5 items per batch. 
-            # If we sleep 2 seconds, that's ~150 items/min limit theoretically?
-            # Let's be conservative: 2 seconds sleep after every 5 items.
-            sleep_time = 2
+            # 5s sleep ensures we don't exceed ~60 requests/min even with overhead.
+            sleep_time = 5
             print(f"⏳ Sleeping {sleep_time}s to respect API Rate Limits...")
             time.sleep(sleep_time)
 

@@ -42,6 +42,11 @@ async def query_memories(query: ChatQuery):
             "score": hit['score'],
             "metadata": hit['metadata']
         })
+    
+    # Debug: Log the image URLs being returned
+    print(f"DEBUG: Returning {len(context_items)} context items:")
+    for i, item in enumerate(context_items):
+        print(f"   [{i+1}] {item['metadata'].get('image_url', 'No Image')} (Score: {item['score']:.4f})")
         
     # 3. Generation
     if not hits:
