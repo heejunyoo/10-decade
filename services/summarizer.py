@@ -73,10 +73,12 @@ def generate_daily_summary(date_str: str):
         # I'll update `ai_service` to expose `generate_raw(messages)`?
         # Actually `ai_service` has `generate_response`. I'll just use that with a strong prompt.
         
+        # Use the unified AI service (Supports Local/Gemini automatically)
+        system_context = "You are a helpful historian summarizing a day's events. Write in Korean."
+        
         summary_text = ai_service.generate_response(
-            user_input=prompt,
-            context="You are a helpful historian summarizing a day's events.",
-            conversation_history=[] # Stateless
+            system_prompt=system_context,
+            user_prompt=prompt
         )
         
         # 3. Save Summary Event

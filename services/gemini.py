@@ -229,4 +229,27 @@ class GeminiService:
             print(f"❌ Gemini Chat Error: {e}")
             return "Sorry, I encountered an error with the Gemini API."
 
+    @retry(
+        retry=retry_if_exception_type(ResourceExhausted),
+        wait=wait_exponential(multiplier=2, min=2, max=60),
+        stop=stop_after_attempt(10),
+        before_sleep=lambda retry_state: print(f"⚠️ Embedding Rate Limit. Sleeping {retry_state.next_action.sleep:.1f}s... (Attempt {retry_state.attempt_number})")
+    )
+    def get_embedding(self, text: str) -> list[float]:
+        """
+        Generates 768-dim embeddings using models/text-embedding-004.
+        Includes automatic retry for Rate Limits (429).
+        """
+        if not self._configure():
+            return []
+            
+        # text-embedding-004 is current standard
+        result = genai.embed_content(
+            model="models/text-embedding-004",
+            content=text,
+            task_type="retrieval_document",
+            title=None
+        )
+        return result['embedding']
+
 gemini_service = GeminiService()

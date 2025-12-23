@@ -4,6 +4,7 @@ uvicorn
 python-multipart
 jinja2
 requests
+python-dotenv
 aiofiles
 
 # Database
@@ -12,7 +13,7 @@ lancedb
 huey
 
 # Image & Vision
-opencv-python-headless
+opencv-python
 pillow
 pillow_heif
 
@@ -23,7 +24,7 @@ deepface
 tf-keras
 
 # AI & ML
-numpy<2.0
+numpy
 transformers
 torch
 torchvision
@@ -38,3 +39,4 @@ deep-translator
 imagehash
 accelerate
 rembg
+tenacity

@@ -63,23 +63,48 @@
 ---
 
 ## 📦 Installation
+There are two ways to run The Decade Journey: **Docker (Recommended for Stability)** or **Local Python**.
 
-**Prerequisites**
-*   Python 3.10+
-*   **Ollama** (Running locally on port 11434)
-*   **FFmpeg** (For video processing)
+### Option 1: Docker (Recommended)
+No dependency hell. Just run it.
 
-**Setup**
-1.  Clone the repository.
-2.  Install dependencies:
+1.  **Prerequisites**:
+    *   Docker & Docker Compose installed.
+    *   **Ollama** installed on your host machine (Required for the default Local AI experience).
+        *   *Note: If you plan to use **only** Google Gemini API, you can skip this.*
+
+2.  **Prepare AI Model (Host)**:
+    Since Docker connects to your host's Ollama, run this once in your terminal:
     ```bash
+    ollama pull llama3.2
+    ```
+
+3.  **Run**:
+    ```bash
+    docker-compose up -d --build
+    ```
+4.  **Access**:
+    *   Web UI: `http://localhost:8000`
+    *   Data is persisted in the `./decade_journey.db`, `./lancedb_data`, and `./static/uploads` folders.
+
+### Option 2: Local Python
+For developers or those who want modify the code directly.
+
+1.  **Prerequisites**:
+    *   Python 3.11+
+    *   **Ollama** (Running locally on port 11434)
+    *   **FFmpeg** (For video processing)
+
+2.  **Setup**:
+    ```bash
+    # Create Virtual Env
+    python -m venv venv
+    source venv/bin/activate  # Windows: venv\\Scripts\\activate
+
+    # Install Deps
     pip install -r requirements.txt
     ```
-3.  Initialize AI Models (Optional, for Local 8B upgrade):
-    ```bash
-    ./scripts/setup_models.sh
-    ```
-4.  Run the server:
+3.  **Run**:
     ```bash
     uvicorn main:app --reload
     ```

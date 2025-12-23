@@ -210,5 +210,45 @@ class AIService:
         ]
         return random.choice(templates)
 
+    def generate_response(self, system_prompt: str, user_prompt: str, temperature: float = 0.7) -> str:
+        """
+        Generic method to generate text via the active AI provider.
+        Supports seamless switching between Local (Ollama) and Gemini.
+        """
+        provider = config.get("ai_provider")
+        
+        try:
+            if provider == "gemini":
+                from services.gemini import gemini_service
+                return gemini_service.chat_query(system_prompt, user_prompt, temperature)
+            else:
+                # Local (Ollama)
+                from services.ollama_manager import ollama_manager
+                import ollama
+                
+                if not ollama_manager.ensure_running():
+                    return "죄송합니다. 로컬 AI 서버(Ollama)가 응답하지 않습니다."
+
+                model_name = ollama_manager.get_best_model()
+                # logger.info(f"Generating response via Local AI: {model_name}")
+                
+                response = ollama.chat(
+                    model=model_name, 
+                    messages=[
+                        {'role': 'system', 'content': system_prompt},
+                        {'role': 'user', 'content': user_prompt}
+                    ],
+                    options={
+                        "temperature": temperature,
+                        "num_ctx": 4096,
+                        "keep_alive": "5m" 
+                    }
+                )
+                return response['message']['content']
+                
+        except Exception as e:
+            logger.error(f"AI Generation Error ({provider}): {e}")
+            return f"오류가 발생했습니다: {str(e)}"
+
 # Singleton
 ai_service = AIService()

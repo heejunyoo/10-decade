@@ -9,8 +9,10 @@ services:
     volumes:
       # Persist Uploads
       - ./static/uploads:/app/static/uploads
-      # Persist Database
-      - ./decade.db:/app/decade.db
+      # Persist Database (Correct Name)
+      - ./decade_journey.db:/app/decade_journey.db
+      # Persist Vector DB (LanceDB)
+      - ./lancedb_data:/app/lancedb_data
       # Persist Backups
       - ./backups:/app/backups
       # Persist HuggingFace Models (save download time on restart)

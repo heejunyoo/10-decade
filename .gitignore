@@ -23,6 +23,7 @@ decade_journey.db
 decade_journey.db-shm
 decade_journey.db-wal
 chroma_db/
+lancedb_data/
 
 # Virtual Environment
 venv/
