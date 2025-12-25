@@ -195,8 +195,6 @@ class MemoryVectorStore:
 
     def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
         from datetime import datetime
-        import lance
-        import pyarrow as pa
         from services.config import config
         
         # Determine Mode: check explicit overrides, otherwise default to "ensemble" if key exists

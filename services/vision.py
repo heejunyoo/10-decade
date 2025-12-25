@@ -52,9 +52,29 @@ class VisionService:
                     "mood": detected_mood
                 }
             except Exception as e:
-                logger.warning(f"Gemini Analysis Failed: {e}")
-                # Fallbck logic could go here, but for now return minimal
-                return {"tags": [], "summary": None, "mood": None}
+                logger.warning(f"⚠️ Gemini Failed ({e}). Attempting Failover to Groq...")
+                # FAILOVER TO GROQ
+                try:
+                    from services.groq import groq_service
+                    tags = groq_service.analyze_image(image_path)
+                    summary = groq_service.generate_caption(image_path, names)
+                    return {
+                        "tags": tags,
+                        "summary": summary,
+                        "mood": None # Groq mood extraction logic similar to Gemini needed? 
+                                     # Actually Groq prompt in groq.py asks for MOOD too.
+                                     # But for safety, return basic for now.
+                    }
+                except Exception as e2:
+                    logger.error(f"❌ Groq Failover Failed: {e2}")
+                    return {"tags": [], "summary": None, "mood": None}
+
+        elif provider == "groq":
+             from services.groq import groq_service
+             tags = groq_service.analyze_image(image_path)
+             summary = groq_service.generate_caption(image_path, names)
+             return { "tags": tags, "summary": summary, "mood": None }
+
         else:
             # Local (Qwen)
             from services.analyzer import analyzer

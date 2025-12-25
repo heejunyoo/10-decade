@@ -58,6 +58,7 @@
 This project is designed with a **"Gemini First"** philosophy to enable easy deployment on low-cost cloud servers (VPS).
 
 *   **Lightweight Startup**: The server starts in "Gemini Mode" by default, requiring minimal RAM (<500MB).
+*   **High Availability**: Supports seamless failover to **Groq (Llama 3.2 Vision)** if Gemini API hits rate limits.
 *   **No GPU Required**: Heavy libraries like `Torch`, `Transformers`, and `DeepFace` are only loaded if you toggle "Local Mode". If they are missing, the system gracefully stays in Cloud Mode.
 *   **Privacy**: Even in Cloud Mode, Face Recognition (`InsightFace`) runs locally on the CPU to ensure biometric data privacy.
 

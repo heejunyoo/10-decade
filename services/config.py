@@ -61,6 +61,7 @@ class ConfigService:
     # Mapping internal keys to Env Vars
     ENV_MAPPING = {
         "gemini_api_key": "GEMINI_API_KEY",
+        "groq_api_key": "GROQ_API_KEY",
         "wedding_anniversary": "WEDDING_ANNIVERSARY", 
         "gemini_model": "GEMINI_MODEL"
     }

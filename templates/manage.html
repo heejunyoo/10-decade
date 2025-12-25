@@ -258,16 +258,18 @@
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Provider</label>
                     <select id="aiProvider" onchange="updateSetting('ai_provider', this.value)"
                         style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; width: 100%;">
-                        <option value="local" {% if get_config('ai_provider') !='gemini' %}selected{% endif %}>Local
+                        <option value="local" {% if get_config('ai_provider')=='local' %}selected{% endif %}>Local
                             (Florence-2 / Ollama)</option>
                         <option value="gemini" {% if get_config('ai_provider')=='gemini' %}selected{% endif %}>Google
-                            Gemini API</option>
+                            Gemini API (Default)</option>
+                        <option value="groq" {% if get_config('ai_provider')=='groq' %}selected{% endif %}>Groq (Llama
+                            3.2 Vision) ⚡</option>
                     </select>
                 </div>
 
-                <!-- Gemini Status Helper -->
+                <!-- Gemini/Groq Status Helper -->
                 <p class="text-xs text-gray-500 mt-2">
-                    * Gemini API Key는 <code>.env</code> 파일에서 관리됩니다.
+                    * API Keys (GEMINI/GROQ) are managed in <code>.env</code> file.
                 </p>
 
             </div>

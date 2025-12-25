@@ -171,6 +171,7 @@ class GeminiService:
 
         try:
             model_name = self._get_model_name()
+            logger.info(f"✨ Gemini: Analyzing Image with {model_name}...")
             # removed direct instantiation here, handled in wrapper
             img = Image.open(image_path)
             
@@ -182,6 +183,7 @@ class GeminiService:
             
             # Parse commas
             tags = [t.strip() for t in text.split(',')]
+            logger.info(f"✅ Gemini: Found {len(tags)} tags (e.g., {tags[:3]}...)")
             return tags
         except Exception as e:
             logger.error(f"❌ Gemini Tagging Error: {e}")
@@ -197,6 +199,7 @@ class GeminiService:
 
         try:
             target_model = model_name or self._get_model_name()
+            logger.info(f"✨ Gemini: Generating Caption with {target_model}...")
             # No need to instantiate model here, _generate_content_with_fallback does it via get_model helper
             # But wait, Helper logic in _generate_content_with_fallback uses `genai.GenerativeModel(name)`
             
@@ -216,6 +219,7 @@ class GeminiService:
             )
             
             response = self._generate_content_with_fallback(target_model, [prompt, img])
+            logger.info(f"✅ Gemini: Caption Generated ({len(response.text)} chars).")
             return response.text.strip()
             
         except Exception as e:
@@ -234,6 +238,8 @@ class GeminiService:
             if not target_model:
                 logger.error("❌ Chat Query Failed: No target model available.")
                 return "AI Model setup failed."
+                
+            logger.info(f"✨ Gemini: Chat Query with {target_model}...")
 
             # Pass generation config for creativity control
             # model = genai.GenerativeModel(...) # Removed direct init
@@ -241,6 +247,7 @@ class GeminiService:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
             response = self._generate_content_with_fallback(target_model, full_prompt, config={"temperature": temperature})
+            logger.info(f"✅ Gemini: Response received ({len(response.text)} chars).")
             return response.text.strip()
         except Exception as e:
             logger.error(f"❌ Gemini Chat Error: {traceback.format_exc()}")
