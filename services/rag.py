@@ -12,6 +12,9 @@ import pydantic
 LANCEDB_PATH = "./lancedb_data"
 TABLE_NAME = "decade_memories"
 
+from services.logger import get_logger
+logger = get_logger("rag")
+
 # Embedding Model Config
 # We stick to the existing one for Phase 1, or prepare for BGE-M3
 MODEL_NAME = 'BAAI/bge-m3'
@@ -68,13 +71,13 @@ class MemoryVectorStore:
             # Legacy Migration: If "decade_memories" exists, rename or just assume new starts here.
             # Ideally user should re-index.
         except Exception as e:
-            print(f"Failed to init Local Table: {e}")
+            logger.error(f"Failed to init Local Table: {e}")
 
         # Table 2: Cloud Brain (Gemini)
         try:
             self.table_gemini = self.db.create_table("decade_memories_gemini", schema=MemoryItemGemini, exist_ok=True)
         except Exception as e:
-            print(f"Failed to init Gemini Table: {e}")
+            logger.error(f"Failed to init Gemini Table: {e}")
 
     def add_events(self, events: List[models.TimelineEvent]):
         """
@@ -131,7 +134,7 @@ class MemoryVectorStore:
 
         # 1. Index to Local Brain (Always)
         try:
-            print(f"🧮 Embedding {len(documents)} memories (Local BGE-M3)...")
+            logger.info(f"🧮 Embedding {len(documents)} memories (Local BGE-M3)...")
             embeddings_local = Embedder.embed_text(documents)
             
             final_items_local = []
@@ -148,15 +151,15 @@ class MemoryVectorStore:
                 self.table_local.delete(f"id IN ({','.join(['\'' + i + '\'' for i in ids])})")
                 self.table_local.add(final_items_local)
                 
-            print(f"✅ Indexed {len(documents)} to Local Brain.")
+            logger.info(f"✅ Indexed {len(documents)} to Local Brain.")
         except Exception as e:
-            print(f"❌ Local Indexing Failed: {e}")
+            logger.error(f"❌ Local Indexing Failed: {e}")
 
         # 2. Index to Gemini Brain (If Key Available)
         from services.config import config
         if config.get("gemini_api_key"):
             try:
-                print(f"☁️ Embedding {len(documents)} memories (Gemini Cloud)...")
+                logger.info(f"☁️ Embedding {len(documents)} memories (Gemini Cloud)...")
                 from services.gemini import gemini_service
                 
                 final_items_gemini = []
@@ -175,10 +178,10 @@ class MemoryVectorStore:
                         ids = [x.id for x in final_items_gemini]
                         self.table_gemini.delete(f"id IN ({','.join(['\'' + i + '\'' for i in ids])})")
                         self.table_gemini.add(final_items_gemini)
-                    print(f"✅ Indexed {len(final_items_gemini)} to Gemini Brain.")
+                    logger.info(f"✅ Indexed {len(final_items_gemini)} to Gemini Brain.")
                     
             except Exception as e:
-                print(f"⚠️ Gemini Indexing Skipped (API Error): {e}")
+                logger.warning(f"⚠️ Gemini Indexing Skipped (API Error): {e}")
 
     def update_photo_index(self, event_id: int):
         db = SessionLocal()
@@ -189,6 +192,9 @@ class MemoryVectorStore:
             db.close()
 
     def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
+        from datetime import datetime
+        import lance
+        import pyarrow as pa
         from services.config import config
         
         # Determine Mode: check explicit overrides, otherwise default to "ensemble" if key exists
@@ -197,16 +203,16 @@ class MemoryVectorStore:
         
         # 1. Force Local
         if search_provider == "local" or (not has_gemini and not search_provider):
-             print(f"🔍 Searching Local Brain (BGE-M3) for: {query}")
+             logger.info(f"🔍 Searching Local Brain (BGE-M3) for: {query}")
              return self._search_local(query, k)
              
         # 2. Force Gemini
         if search_provider == "gemini":
-             print(f"🔍 Searching Gemini Brain for: {query}")
+             logger.info(f"🔍 Searching Gemini Brain for: {query}")
              return self._search_gemini(query, k)
              
         # 3. Default: Ensemble (Dual) - Best of Both Worlds
-        print(f"🧠 Dual-Search (Ensemble): Local + Gemini for '{query}'")
+        logger.info(f"🧠 Dual-Search (Ensemble): Local + Gemini for '{query}'")
         return self._search_ensemble(query, k)
 
     def _search_ensemble(self, query: str, k: int) -> List[Dict[str, Any]]:
@@ -242,7 +248,7 @@ class MemoryVectorStore:
         
         # 3. LLM Reranking (Precision)
         # Use Gemini Flash to filter out noise (like the persistent 'sticky' images)
-        print(f"🧠 Reranking {len(top_candidates)} candidates via Gemini...")
+        logger.info(f"🧠 Reranking {len(top_candidates)} candidates via Gemini...")
         return self._rerank_with_llm(query, top_candidates, k)
 
     def _rerank_with_llm(self, query: str, candidates: List[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
@@ -291,14 +297,14 @@ class MemoryVectorStore:
                     if 0 <= idx < len(candidates):
                         reranked_results.append(candidates[idx])
                 
-                print(f"   ↳ LLM Selected {len(reranked_results)} relevant memories.")
+                logger.info(f"   ↳ LLM Selected {len(reranked_results)} relevant memories.")
                 return reranked_results[:top_k]
             else:
-                print("   ⚠️ LLM Reranking failed to parse JSON. Falling back to RRF.")
+                logger.warning("   ⚠️ LLM Reranking failed to parse JSON. Falling back to RRF.")
                 return candidates[:top_k]
 
         except Exception as e:
-            print(f"   ⚠️ LLM Reranking Error: {e}. Falling back to RRF.")
+            logger.error(f"   ⚠️ LLM Reranking Error: {e}. Falling back to RRF.")
             return candidates[:top_k]
 
     def _search_local(self, query: str, k: int):
@@ -351,7 +357,7 @@ class MemoryVectorStore:
             hits.sort(key=lambda x: x["score"], reverse=True)
             return hits
         except Exception as e:
-            print(f"Search Error: {e}")
+            logger.error(f"Search Error: {e}")
             return []
 
     def get_embeddings(self, ids: List[str]):
@@ -364,7 +370,7 @@ class Indexer:
         vector_store = MemoryVectorStore()
         try:
             events = db.query(models.TimelineEvent).all()
-            print(f"📚 Full Indexing: {len(events)} events (Dual Mode)")
+            logger.info(f"📚 Full Indexing: {len(events)} events (Dual Mode)")
             chunk_size = 20 # Smaller chunk for dual API calls
             for i in range(0, len(events), chunk_size):
                 chunk = events[i : i + chunk_size]

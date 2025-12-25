@@ -3,8 +3,12 @@ import os
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 from services.config import config
+from services.logger import get_logger
 from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import traceback
+
+logger = get_logger("gemini")
 
 class GeminiService:
     _instance = None
@@ -12,7 +16,7 @@ class GeminiService:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(GeminiService, cls).__new__(cls)
-            cls._instance.fallback_model_name = None 
+            cls._instance.available_models = [] # List of model names sorted by priority
             # Do NOT trigger DB access (refresh_best_model) here.
             # It causes crashes if DB is not yet created (e.g. after reset).
             # It will be triggered lazily by _get_model_name() on first use.
@@ -26,37 +30,39 @@ class GeminiService:
         return True
 
     def _get_model_name(self):
-        # Simply return the configured (and probed) model
-        # If refresh_best_model did its job, 'gemini_model' in config should be the working one.
-        model = config.get("gemini_model")
-        if not model: 
-            if self._configure():
-                self.refresh_best_model()
-                model = config.get("gemini_model")
+        # Return the best available model, or trigger refresh if empty
+        if not self.available_models:
+             if self._configure():
+                 self.refresh_best_model()
         
-        return model or self.fallback_model_name
+        if not self.available_models:
+             print("❌ Critical: No Gemini models found via API discovery.")
+             return None
+
+        return self.available_models[0]
 
     def get_flash_model_name(self):
         """
-        Returns the dynamically discovered Flash/Fallback model name.
-        Used for high-volume tasks to avoid rate limits on Pro models.
+        Returns the best available Flash model from the discovery list.
         """
-        if not self.fallback_model_name:
-             # Force discovery if missing
-             if self._configure():
-                 self.refresh_best_model()
-
-        if not self.fallback_model_name:
-            print("❌ Critical: No Flash model found via API discovery.")
-            # If we absolutely cannot find one, we stop. User wants NO guessing.
-            return None
+        if not self.available_models:
+             self._get_model_name() # Trigger discovery
              
-        return self.fallback_model_name
+        # Find first model with 'flash' in name
+        for m in self.available_models:
+            if 'flash' in m.lower():
+                return m
+                
+        # If no flash found, return best available (e.g. Pro) or None
+        if not self.available_models:
+            print("❌ Critical: No Gemini models found (Flash search).")
+            return None
+            
+        return self.available_models[0]
 
     def refresh_best_model(self):
         """
-        Finds the best model AND probes it to ensure it works (Capacity Check).
-        If Pro fails (429), automatically falls back to Flash.
+        Discovers all available Gemini models and sorts them by preference.
         """
         if not self._configure():
             return
@@ -64,94 +70,94 @@ class GeminiService:
         try:
             import re
             models = list(genai.list_models())
-            candidates = [m.name.replace("models/", "") for m in models if "generateContent" in m.supported_generation_methods]
+            # Filter for generateContent support
+            candidates = [m.name for m in models if "generateContent" in m.supported_generation_methods]
             
             def model_score(name):
+                # Priority: Flash > Pro (for bulk tasks), Version (Newer > Older), Stability (Stable > Exp)
+                # But wait, user prefers Pro for Logic? 
+                # Actually for general Fallback, we want a robust list.
+                # Let's verify 'flash' preference for bulk is handled by get_flash_model_name.
+                # Here we just want a good sorted list.
+                
                 match = re.search(r"gemini-(\d+(?:\.\d+)?)-?([a-z]+)?", name)
                 if not match: return (0, 0, 0)
                 version = float(match.group(1)) if match.group(1) else 0.0
                 
                 tier_score = 1
-                if "ultra" in name: tier_score = 4
-                elif "pro" in name: tier_score = 3
-                elif "flash" in name: tier_score = 2
-                elif "nano" in name or "lite" in name: tier_score = 1
+                if "flash" in name: tier_score = 3 # Flash is safest fallback usually
+                elif "pro" in name: tier_score = 2
+                elif "ultra" in name: tier_score = 1
                 
                 stability_score = 0
-                if "exp" in name or "preview" in name: stability_score = -0.1
+                if "exp" in name or "preview" in name: stability_score = -1
+                
                 return (version, tier_score, stability_score)
 
+            # Sort best first
             candidates.sort(key=model_score, reverse=True)
-
+            self.available_models = candidates
+            
             if candidates:
-                best_candidate = candidates[0]
-                
-                # Identify Flash fallback
-                flash_candidates = [m for m in candidates if "flash" in m]
-                fallback = flash_candidates[0] if flash_candidates else (candidates[-1] if candidates else None)
-                self.fallback_model_name = fallback
-
-                # PROBE: Check if Best Candidate works
-                print(f"🕵️ Zero-Test: Probing {best_candidate}...")
-                try:
-                    meta_model = genai.GenerativeModel(best_candidate)
-                    # Tiny request to check quota
-                    meta_model.generate_content("Hi")
-                    print(f"✅ Probe Success: Using {best_candidate}")
-                    final_model = best_candidate
-                except ResourceExhausted:
-                    print(f"⚠️ Probe Failed (Rate Limit): {best_candidate}. Downgrading to {fallback}.")
-                    final_model = fallback
-                except Exception as e:
-                    print(f"⚠️ Probe Failed (Error: {e}). Downgrading to {fallback}.")
-                    final_model = fallback
-
-                # Save the WINNER
-                if final_model:
-                    config.set("gemini_model", final_model)
-                    print(f"✨ Gemini AI: Configured to {final_model}")
+                logger.info(f"✨ Gemini Models Discovered: {candidates}")
+                config.set("gemini_model", candidates[0])
             else:
-                 print("⚠️ No valid Gemini models found.")
+                 logger.warning("⚠️ No valid Gemini models found.")
 
         except Exception as e:
-            print(f"⚠️ Failed to auto-detect models: {e}")
+            logger.error(f"⚠️ Failed to auto-detect models: {e}")
 
     @retry(
         retry=retry_if_exception_type(ResourceExhausted),
-        wait=wait_exponential(multiplier=2, min=2, max=60),
-        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=2, max=30), # Reduced max wait - switch faster
+        stop=stop_after_attempt(3), # Fail faster to trigger rotation
         reraise=True,
-        before_sleep=lambda retry_state: print(f"⚠️ Rate limit hit. Retrying in {retry_state.next_action.sleep} seconds... (Attempt {retry_state.attempt_number})")
+        before_sleep=lambda retry_state: logger.warning(f"⚠️ Rate limit. Retrying (Attempt {retry_state.attempt_number})...")
     )
     def _generate_safe(self, model, content, stream=False):
         """
-        Safely generates content with exponential backoff for Rate Limits.
+        Safely generates content with exponential backoff.
         """
         return model.generate_content(content, stream=stream)
 
     def _generate_content_with_fallback(self, primary_model_name, content, stream=False, config=None):
         """
-        Wraps generate_content with a fallback mechanism for Rate Limits (429).
-        Since we probed at setup, widely expected to just work. 
-        But keep simple fallback just in case of transient spikes.
+        Tries the primary model, then rotates through ALL available models on Rate Limit.
         """
         import google.generativeai as genai 
         
-        # Helper to get model with config
         def get_model(name):
              if config:
                  return genai.GenerativeModel(name, generation_config=genai.types.GenerationConfig(**config))
              return genai.GenerativeModel(name)
-
-        model = get_model(primary_model_name)
+        
+        # 1. Try Primary
         try:
+            model = get_model(primary_model_name)
             return self._generate_safe(model, content, stream=stream)
         except ResourceExhausted:
-            if self.fallback_model_name and primary_model_name != self.fallback_model_name:
-                print(f"⚠️ Transient Rate Limit for {primary_model_name}. Retrying with {self.fallback_model_name}")
-                fallback_model = get_model(self.fallback_model_name)
-                # Also use safe retry for fallback
-                return self._generate_safe(fallback_model, content, stream=stream)
+            logger.warning(f"⚠️ Rate Limit on {primary_model_name}. Attempting Failover...")
+            
+            # 2. Rotate through available models
+            # We skip the primary one since it just failed
+            for fallback_name in self.available_models:
+                if fallback_name == primary_model_name:
+                    continue
+                    
+                logger.info(f"🔄 Failover: Trying {fallback_name}...")
+                try:
+                    fallback_model = get_model(fallback_name)
+                    # Try once or twice, don't wait too long on fallback
+                    return fallback_model.generate_content(content, stream=stream)
+                except ResourceExhausted:
+                    logger.warning(f"   Skip {fallback_name} (Rate Limited)")
+                    continue
+                except Exception as e:
+                    logger.error(f"   Skip {fallback_name} (Error: {e})")
+                    continue
+            
+            # If all fail
+            logger.error("❌ All Gemini models exhausted.")
             raise
 
     def analyze_image(self, image_path: str) -> list[str]:
@@ -160,7 +166,7 @@ class GeminiService:
         Returns a list of strings.
         """
         if not self._configure():
-            print("❌ Gemini API Key missing.")
+            logger.error("❌ Gemini API Key missing.")
             return []
 
         try:
@@ -178,7 +184,7 @@ class GeminiService:
             tags = [t.strip() for t in text.split(',')]
             return tags
         except Exception as e:
-            print(f"❌ Gemini Tagging Error: {e}")
+            logger.error(f"❌ Gemini Tagging Error: {e}")
             return []
 
     def generate_caption(self, image_path: str, names: list[str] = None, model_name: str = None) -> str:
@@ -213,7 +219,7 @@ class GeminiService:
             return response.text.strip()
             
         except Exception as e:
-            print(f"❌ Gemini Caption Error: {e}")
+            logger.error(f"❌ Gemini Caption Error: {e}")
             return None
 
     def chat_query(self, system_prompt: str, user_prompt: str, temperature: float = 0.7, model_name: str = None) -> str:
@@ -225,35 +231,26 @@ class GeminiService:
 
         try:
             target_model = model_name or self._get_model_name()
+            if not target_model:
+                logger.error("❌ Chat Query Failed: No target model available.")
+                return "AI Model setup failed."
+
             # Pass generation config for creativity control
-            model = genai.GenerativeModel(
-                target_model, 
-                generation_config=genai.types.GenerationConfig(temperature=temperature)
-            )
+            # model = genai.GenerativeModel(...) # Removed direct init
+            
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
-            # Use safe wrapper (fallback handled internally, but verify if config passes through?)
-            # _generate_content_with_fallback instantiates GenerativeModel internally.
-            # So passing 'model' object to _generate_safe is better, BUT _generate_content_with_fallback
-            # currently takes 'model_name' and re-instantiates.
-            # I need to refactor _generate_content_with_fallback to accept config OR modifying it to accept instanced model?
-            # Or just instantiate here and call _generate_safe directly? 
-            # But _generate_fallback handles 429 logic with fallback model.
-            
-            # Refactor Plan: Pass generation config to _generate_content_with_fallback?
-            # Or just pass the 'config' dict.
-            
-            response = self._generate_content_with_fallback(model_name, full_prompt, config={"temperature": temperature})
+            response = self._generate_content_with_fallback(target_model, full_prompt, config={"temperature": temperature})
             return response.text.strip()
         except Exception as e:
-            print(f"❌ Gemini Chat Error: {e}")
+            logger.error(f"❌ Gemini Chat Error: {traceback.format_exc()}")
             return "Sorry, I encountered an error with the Gemini API."
 
     @retry(
         retry=retry_if_exception_type(ResourceExhausted),
         wait=wait_exponential(multiplier=2, min=2, max=60),
         stop=stop_after_attempt(10),
-        before_sleep=lambda retry_state: print(f"⚠️ Embedding Rate Limit. Sleeping {retry_state.next_action.sleep:.1f}s... (Attempt {retry_state.attempt_number})")
+        before_sleep=lambda retry_state: logger.warning(f"⚠️ Embedding Rate Limit. Sleeping {retry_state.next_action.sleep:.1f}s... (Attempt {retry_state.attempt_number})")
     )
     def get_embedding(self, text: str) -> list[float]:
         """

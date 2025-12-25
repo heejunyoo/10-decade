@@ -15,29 +15,26 @@
 *   **Smart Metadata**: Automatically extracts EXIF date, GPS, and device info.
 *   **Cinema Mode**: A slideshow experience with ambient background music.
 
-### 🧠 On-Device AI Intelligence
-*   **Face Recognition**: Automatically detects and groups faces using **InsightFace**.
+### 🧠 Hybrid Intelligence (Local + Cloud)
+*   **Face Recognition**: Automatically detects and groups faces using **InsightFace** (Local).
     *   *Manage People*: Merge unknown faces, name family members.
-*   **Vision Analysis**: AI analyzes every photo to generate:
-    *   **Captions**: "A group of friends laughing at a birthday party."
-    *   **Searchable Tags**: "sunset, beach, happy, dog".
-*   **Local LLM Integration**: Uses **Ollama** (Llama 3, Gemma 2) to run a private AI assistant.
-    *   *Dynamic Model Switching*: Supports generic 3B models or powerful 8B+ models.
-    *   *Hybrid AI*: Option to switch to **Google Gemini (Cloud)** for higher reasoning content.
+*   **Vision Analysis**: AI analyzes every photo to generate captions and tags.
+    *   **Auto-Switching**: Uses **Gemini Flash** for high-speed captioning, automatically falling back to other models on rate limits.
+*   **Dual-Search (Ensemble)**: Combines **Local Vector Search (BGE-M3)** with **Gemini Cloud Search** to find memories like "My daughter playing in the snow".
+    *   *Results are re-ranked by LLM for maximum relevance.*
 
 ### 💬 Memory Assistant
 *   **RAG Chatbot**: Chat with your memories. "What did we eat in Jeju Island in 2022?"
-    *   Uses **LanceDB** for vector semantic search.
-*   **Daily Interview**: The AI acts as a biographer, asking you one question a day about a specific past photo to enrich its story.
-*   **Time Capsule**: Write messages to your future self (or family) to be unlocked on a specific date.
+*   **Daily Interview**: The AI acts as a biographer, asking you one question a day.
+*   **Time Capsule**: Write messages to your future self.
 
 ### 🗺️ Geospatial Memories
-*   **Interactive Map**: View your photos pinned on a global map based on GPS usage.
+*   **Interactive Map**: View your photos pinned on a global map.
 
 ### 🛡️ Privacy & Stability
-*   **100% Self-Hosted**: Your data never leaves your machine (unless you opt-in to Gemini).
-*   **Background Processing**: Uses **Huey** task queue for non-blocking uploads and AI analysis.
-*   **Self-Healing**: Automatic remediation of "orphaned" (incomplete) database records.
+*   **100% Self-Hosted Core**: Your source files never leave your machine. Metadata is local.
+*   **Resilient AI**: System automatically rotates through available Gemini models (Flash -> Pro) if quotas are hit.
+*   **Self-Healing**: Automatic remediation of "orphaned" tasks on restart.
 
 ---
 
@@ -45,61 +42,50 @@
 
 **Backend**
 *   **FastAPI**: High-performance Async Web Framework.
-*   **SQLAlchemy**: SQLite ORM for structured metadata.
-*   **LanceDB**: Embedded Vector Database for semantic search (RAG).
-*   **Huey**: Lightweight task queue (Redis-free, SQLite backend).
+*   **SQLAlchemy**: SQLite ORM.
+*   **LanceDB**: Hybrid Vector Database (Local + Cloud Embeddings).
+*   **Huey**: Lightweight task queue.
 
 **AI & ML**
-*   **Ollama**: Local LLM Runner (Interface for Llama 3, Phi, Gemma).
-*   **InsightFace**: State-of-the-art Face Analysis.
-*   **Sentence-Transformers**: Text Embeddings for RAG.
-*   **Pillow / Pillow-HEIF**: Image processing and Apple HEIC conversion.
-
-**Frontend**
-*   **Jinja2**: Server-side templating.
-*   **Vanilla JS / HTMX**: Dynamic interactions without heavy frameworks.
-*   **Tailwind CSS (via CDN)**: Utility-first styling.
+*   **Ollama**: Local LLM Runner.
+*   **InsightFace**: Local Face Analysis.
+*   **Google Gemini**: Cloud Vision & Reasoning (Optional but Recommended).
 
 ---
 
 ## 📦 Installation
-There are two ways to run The Decade Journey: **Docker (Recommended for Stability)** or **Local Python**.
+There are two ways to run The Decade Journey: **Docker** or **Local Python**.
+
+### Configuration (Crucial)
+Before running, create a `.env` file in the root directory:
+```bash
+cp .env.example .env
+```
+Edit `.env` to add your keys:
+*   `GEMINI_API_KEY`: Required for Cloud Search & Advanced Vision.
+*   `OLLAMA_BASE_URL`: (Optional) Defaults to http://localhost:11434.
 
 ### Option 1: Docker (Recommended)
 No dependency hell. Just run it.
 
 1.  **Prerequisites**:
     *   Docker & Docker Compose installed.
-    *   **Ollama** installed on your host machine (Required for the default Local AI experience).
-        *   *Note: If you plan to use **only** Google Gemini API, you can skip this.*
+    *   **Ollama** installed on host (pull `llama3.2`).
 
-2.  **Prepare AI Model (Host)**:
-    Since Docker connects to your host's Ollama, run this once in your terminal:
-    ```bash
-    ollama pull llama3.2
-    ```
-
-3.  **Run**:
+2.  **Run**:
     ```bash
     docker-compose up -d --build
     ```
-4.  **Access**:
-    *   Web UI: `http://localhost:8000`
-    *   Data is persisted in the `./decade_journey.db`, `./lancedb_data`, and `./static/uploads` folders.
+    *   Access at: `http://localhost:8000`
 
 ### Option 2: Local Python
-For developers or those who want modify the code directly.
+For developers.
 
-1.  **Prerequisites**:
-    *   Python 3.11+
-    *   **Ollama** (Running locally on port 11434)
-    *   **FFmpeg** (For video processing)
-
-2.  **Setup**:
+1.  **Setup**:
     ```bash
     # Create Virtual Env
     python -m venv venv
-    source venv/bin/activate  # Windows: venv\\Scripts\\activate
+    source venv/bin/activate
 
     # Install Deps
     pip install -r requirements.txt

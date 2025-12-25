@@ -29,17 +29,48 @@
                     ✨ Daily AI Interviewer
                 </h3>
 
+                <!-- Loading Indicator Style (Inline for simplicity) -->
+                <style>
+                    .htmx-indicator {
+                        display: none;
+                        opacity: 0;
+                        transition: opacity 200ms ease-in;
+                    }
+
+                    .htmx-request .htmx-indicator,
+                    .htmx-request.htmx-indicator {
+                        display: inline-block;
+                        opacity: 1;
+                    }
+                </style>
+
                 <!-- Refresh Button (HTMX) -->
                 {% if not interaction.is_answered %}
-                <button class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-black/5"
-                    hx-post="/memories/daily/refresh" hx-target="#daily-memory-widget" hx-swap="outerHTML"
-                    title="Refresh Question">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    <!-- Loading Spinner -->
+                    <div id="daily-spinner" class="htmx-indicator text-gray-400 text-sm flex items-center gap-1">
+                        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <span>Generating...</span>
+                    </div>
+
+                    <button
+                        class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-black/5"
+                        hx-post="/memories/daily/refresh" hx-target="#daily-memory-widget" hx-swap="outerHTML"
+                        hx-indicator="#daily-spinner" title="Refresh Question">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
                 {% endif %}
             </div>
 
