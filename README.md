@@ -46,10 +46,20 @@
 *   **LanceDB**: Hybrid Vector Database (Local + Cloud Embeddings).
 *   **Huey**: Lightweight task queue.
 
-**AI & ML**
-*   **Ollama**: Local LLM Runner.
-*   **InsightFace**: Local Face Analysis.
-*   **Google Gemini**: Cloud Vision & Reasoning (Optional but Recommended).
+**AI & ML (Hybrid Architecture)**
+*   **Google Gemini (Default)**: Handles Chat, Vision, and Reasoning via Cloud API. Lightweight & Fast.
+*   **Local Models (On-Demand)**:
+    *   **InsightFace**: Always-on, lightweight CPU face recognition.
+    *   **Ollama / Qwen2-VL / BGE-M3**: Heavy local models are **Lazy Loaded**. They consume 0 RAM until you explicitly enable "Local Mode" in Settings.
+
+---
+
+## ☁️ Cloud-Native Deployment Ready
+This project is designed with a **"Gemini First"** philosophy to enable easy deployment on low-cost cloud servers (VPS).
+
+*   **Lightweight Startup**: The server starts in "Gemini Mode" by default, requiring minimal RAM (<500MB).
+*   **No GPU Required**: Heavy libraries like `Torch`, `Transformers`, and `DeepFace` are only loaded if you toggle "Local Mode". If they are missing, the system gracefully stays in Cloud Mode.
+*   **Privacy**: Even in Cloud Mode, Face Recognition (`InsightFace`) runs locally on the CPU to ensure biometric data privacy.
 
 ---
 
@@ -70,7 +80,8 @@ No dependency hell. Just run it.
 
 1.  **Prerequisites**:
     *   Docker & Docker Compose installed.
-    *   **Ollama** installed on host (pull `llama3.2`).
+
+    *   **Ollama** (Optional): Only required if you plan to use "Local Mode". Not needed for Gemini.
 
 2.  **Run**:
     ```bash
@@ -88,7 +99,12 @@ For developers.
     source venv/bin/activate
 
     # Install Deps
+    # Install Core Dependencies (Gemini Mode - Lightweight)
     pip install -r requirements.txt
+
+    # (Optional) Install Local AI Dependencies (For Local Mode)
+    # Required for: Qwen2-VL, BGE-M3, DeepFace
+    pip install -r requirements-local.txt
     ```
 3.  **Run**:
     ```bash

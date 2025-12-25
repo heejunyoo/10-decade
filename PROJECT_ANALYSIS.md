@@ -40,9 +40,10 @@ To eliminate "Generic/Sticky" memories (e.g., a photo that matches "happy" but i
 ## Key Components
 
 ### Backend (`services/`)
-*   `rag.py`: Implements the `MemoryVectorStore` class containing the Dual Index, RRF logic, and `_rerank_with_llm` method.
-*   `gemini.py`: Handles all interactions with Google Gemini API (Chat, Embeddings, Vision).
-*   `ai_service.py`: Orchestrates high-level AI tasks (Time Capsule questions, Interview mode).
+*   `rag.py`: Implements the `MemoryVectorStore`. now uses **Lazy Loading** for `sentence_transformers` to allow lightweight startup without heavy dependencies.
+*   `gemini.py`: Handles interactions with Google Gemini API. Now creates a "Gemini-Native" experience by default.
+*   `analyzer.py`: Manages the Qwen2-VL Vision Model. Refactored to **load Torch/Transformers on-demand**. This prevents server crashes in environments where these libraries are missing.
+*   `ai_service.py`: Orchestrates high-level AI tasks.
 
 ### Frontend
 *   `templates/chat_search.html`: The interface for the Memory Assistant.

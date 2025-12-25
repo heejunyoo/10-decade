@@ -1,0 +1,9 @@
+transformers
+torch
+torchvision
+sentence-transformers
+accelerate
+deepface
+tf-keras
+ollama
+rembg

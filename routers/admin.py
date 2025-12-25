@@ -390,3 +390,33 @@ def update_setting(setting: SettingUpdate, db: Session = Depends(get_db)):
 
         return {"status": "success", "message": "✅ 설정이 변경되었습니다.", "key": setting.key, "value": setting.value}
     return JSONResponse({"status": "error", "message": "Failed to update setting"}, status_code=500)
+@router.get("/api/settings/warmup")
+def warmup_local_models():
+    """
+    Triggers loading of local AI models to verify dependencies and warm up.
+    """
+    logger.info("🔥 Warming up Local AI Models...")
+    try:
+        # 1. Vision Model (Heaviest)
+        from services.analyzer import analyzer
+        analyzer.load_model()
+        
+        # 2. Embedding Model (Sentence Transformers)
+        # We can trigger it by getting the model
+        from services.rag import Embedder
+        Embedder.get_model()
+        
+        return {"status": "success", "message": "Local Models Ready"}
+        
+    except ImportError as e:
+        logger.error(f"❌ Local AI Warmup Failed (Missing Dependencies): {e}")
+        return JSONResponse(
+            {"status": "error", "message": "Required libraries missing. Please run 'pip install -r requirements-local.txt' to enable Local Mode."},
+            status_code=500
+        )
+    except Exception as e:
+        logger.error(f"❌ Local AI Warmup Failed: {e}")
+        return JSONResponse(
+            {"status": "error", "message": f"Initialization Failed: {str(e)}"},
+            status_code=500
+        )

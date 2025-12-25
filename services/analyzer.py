@@ -4,11 +4,12 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
-import torch
 import cv2
 import numpy as np
 from PIL import Image, ExifTags
-from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+# Lazy Import: transformers, torch
+# from transformers import AutoProcessor, Qwen2VLForConditionalGeneration (Moved to load_model)
+
 from geopy.geocoders import Nominatim
 from utils.translations import TAG_TRANSLATIONS
 import threading
@@ -41,6 +42,9 @@ class ImageAnalyzer:
 
             logger.info("👁️ Loading Vision Model (Qwen2-VL-2B-Instruct) [Lazy Load]...")
             try:
+                import torch
+                from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+
                 # Device Selection
                 self.device = "cpu"
                 if torch.cuda.is_available():

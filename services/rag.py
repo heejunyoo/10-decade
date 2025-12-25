@@ -2,7 +2,8 @@ import os
 import lancedb
 from lancedb.pydantic import LanceModel, Vector
 from lancedb.embeddings import get_registry
-from sentence_transformers import SentenceTransformer
+from lancedb.embeddings import get_registry
+# Lazy Import: sentence_transformers
 import models
 from database import SessionLocal
 from typing import List, Dict, Any, Optional
@@ -27,6 +28,7 @@ class Embedder:
     def get_model(cls):
         if cls._model is None:
             print(f"🧠 Loading Embedding Model ({MODEL_NAME})...")
+            from sentence_transformers import SentenceTransformer
             cls._model = SentenceTransformer(MODEL_NAME)
         return cls._model
 

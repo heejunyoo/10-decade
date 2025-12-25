@@ -332,6 +332,11 @@
 
         async function updateSetting(key, value) {
             try {
+                // Special handling for Local Mode switch
+                if (key === 'ai_provider' && value === 'local') {
+                    showToast("Initializing Local AI Models... (may take 10-20s)", 'info');
+                }
+
                 const res = await fetch('/api/settings/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -341,12 +346,28 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    showToast(data.message || "Setting Updated!");
+                    if (key === 'ai_provider' && value === 'local') {
+                        // Trigger Warmup
+                        try {
+                            const warmupRes = await fetch('/api/settings/warmup');
+                            if (warmupRes.ok) {
+                                showToast("✅ Local AI Models Loaded & Ready!");
+                            } else {
+                                throw new Error("Model Load Failed");
+                            }
+                        } catch (e) {
+                            showToast("⚠️ Local AI Load Failed (Missing Libraries?). Reverting to Gemini.", 'error');
+                            // Revert UI
+                            document.getElementById('aiProvider').value = 'gemini';
+                            updateSetting('ai_provider', 'gemini');
+                            return;
+                        }
+                    } else {
+                        showToast(data.message || "Setting Updated!");
+                    }
 
                     if (key === 'theme') {
                         setTimeout(() => location.reload(), 500);
-                    } else if (key === 'ai_provider') {
-                        // UI Update if needed
                     }
                 } else {
                     showToast(data.message || "Error updating setting", 'error');

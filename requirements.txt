@@ -20,23 +20,10 @@ pillow_heif
 # Face Recognition
 insightface>=0.7
 onnxruntime
-deepface
-tf-keras
-
-# AI & ML
-numpy
-transformers
-torch
-torchvision
-sentence-transformers
-ollama
-
 # Utilities
 tqdm
 google-generativeai
 geopy
 deep-translator
 imagehash
-accelerate
-rembg
 tenacity
