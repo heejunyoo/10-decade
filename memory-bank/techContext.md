@@ -1,36 +1,46 @@
-# Technology Context
+# Technical Context
 
-## Core Stack
-*   **Language**: Python 3.10+
-*   **Web Framework**: `FastAPI` (ASGI)
-*   **Server**: `Uvicorn`
-*   **Database**: `SQLAlchemy` (ORM) + `SQLite` (File-based)
+## Technology Stack
 
-## AI & Machine Learning
-### 1. Vision (Local)
-*   **Model**: Microsoft `Florence-2-large`
-*   **Library**: `transformers` (HuggingFace)
-*   **Hardware Compatibility**: Optimized for CPU (AVX2) / Mac MPS.
+### Core
+*   **Language**: Python 3.13
+*   **Web Framework**: FastAPI
+*   **Template Engine**: Jinja2 (Serverside Rendering)
+*   **Database**: 
+    *   `SQLite` (Metadata, User Profiles, Settings)
+    *   `LanceDB` (Vector Storage - Local & Cloud Embeddings)
+    *   `ChromaDB` (Data Persistence - Legacy/Backup)
+*   **Task Queue**: Huey (SQLite backend) - Handles async AI processing.
 
-### 2. Face Recognition
-*   **Library**: `InsightFace` (Python)
-*   **Model Pack**: `buffalo_l` (RetinaFace Detection + ArcFace Embedding)
-*   **Runtime**: `ONNXRuntime` (Configured for CPU Execution stability).
+### AI & Machine Learning
+*   **Face Recognition**: `InsightFace` (ONNX Runtime)
+*   **Vision**: 
+    *   Primary: Google Gemini 1.5 Flash/Pro
+    *   Secondary: Groq (Llama 3.2 Vision)
+    *   Local (Optional): Qwen2-VL-2B-Instruct (via `transformers`)
+*   **Chat/Text**: 
+    *   Primary: Gemini 1.5 Pro
+    *   Secondary: Groq (Llama 3.3 / Mixtral)
+    *   Local (Optional): Ollama (Llama 3, Gemma 2)
+*   **Embedding**:
+    *   Cloud: `models/text-embedding-004` (Gemini)
+    *   Local: `BAAI/bge-m3` (SentenceTransformers)
 
-### 3. Generative Chat
-*   **Local Backend**: `Ollama` (External Process) running `Llama 3.1`.
-*   **Cloud Backend**: `Google Generative AI SDK` connected to `Gemini 1.5 Flash/Pro`.
-
-### 4. Search & Retrieval
-*   **Vector DB**: `ChromaDB` (Local persistence).
-*   **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2`.
-
-## Frontend Architecture
-*   **Styling**: `Tailwind CSS` (CDN Integration).
-*   **Interactivity**: `Alpine.js` (Client-side state), `HTMX` (Server-side interaction).
-*   **Maps**: `Leaflet.js` + `OpenStreetMap` + `MarkerCluster`.
-*   **Templates**: `Jinja2` (Server-side rendering).
+### Frontend
+*   **Style**: Vanilla CSS (Variables for theming) + FontAwesome
+*   **JS**: Vanilla JS (Masonry Layout, Modals)
+*   **PWA**: Manifest support for mobile install
 
 ## Development Environment
-*   **Configuration**: `.env` file (managed via `python-dotenv`).
-*   **Logging**: Database-backed `SystemLog` table + Standard Console Output.
+*   **OS**: macOS (Metal MPS support enabled for Torch)
+*   **Virtual Env**: `venv` (Standard)
+*   **Dependencies**: 
+    *   `requirements.txt`: Core + Cloud AI libs.
+    *   `requirements-local.txt`: Heavy local ML libs (`torch`, `transformers`).
+
+## Key Directories
+*   `routers/`: API endpoints separated by feature (timeline, chat, faces...)
+*   `services/`: Business logic and Singleton services.
+*   `templates/`: HTML Jinja2 templates.
+*   `static/`: Assets and User Uploads.
+*   `lancedb_data/`: Vector database storage.

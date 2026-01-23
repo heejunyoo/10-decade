@@ -56,6 +56,11 @@ class AIService:
                     return "미래의 나에게 어떤 말을 남기고 싶으신가요? (AI 연결 실패)"
 
                 model_name = ollama_manager.get_best_model()
+
+                # Ensure model is downloaded (Auto-pull)
+                if not ollama_manager.ensure_model(model_name):
+                     return "AI 모델 다운로드 실패. 인터넷 연결을 확인해주세요."
+
                 response = ollama.chat(
                     model=model_name, 
                     messages=[
@@ -137,8 +142,11 @@ class AIService:
 
                 # Self-Correction Loop (Max 3 attempts)
                 max_retries = 3
+                model_name = ollama_manager.get_best_model()
+                if not ollama_manager.ensure_model(model_name): return None
+
                 for attempt in range(max_retries):
-                    model_name = ollama_manager.get_best_model()
+                    # model_name = ollama_manager.get_best_model() # Moved up
                     response = ollama.chat(
                         model=model_name, 
                         messages=[
@@ -231,6 +239,9 @@ class AIService:
 
                 model_name = ollama_manager.get_best_model()
                 # logger.info(f"Generating response via Local AI: {model_name}")
+
+                # Ensure model is downloaded
+                ollama_manager.ensure_model(model_name)
                 
                 response = ollama.chat(
                     model=model_name, 

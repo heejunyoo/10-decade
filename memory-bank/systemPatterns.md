@@ -1,50 +1,39 @@
-# System Architecture & Patterns
+# System Patterns
 
 ## Architecture Overview
-The system follows a **Monolithic Service-Based Architecture** using Python backend and Server-Side Rendered (SSR) frontend.
 
-### High-Level Diagram
-```mermaid
-graph TD
-    User[User Browser]
-    Web[FastAPI Server]
-    DB[(SQLite)]
-    Vector[(ChromaDB)]
-    
-    subgraph Services
-        Config[ConfigService]
-        Faces[InsightFace Service]
-        Vision[Florence-2 / Gemini]
-        Chat[Ollama / Gemini]
-        Memory[Interviewer]
-    end
+The system follows a **Modular Monolith** architecture built on FastAPI. It emphasizes separation of concerns via distinct Services and Routers.
 
-    User -- HTMX/HTTP --> Web
-    Web --> Services
-    Services --> DB
-    Services --> Vector
-```
+### 1. Service Layer Pattern (Singleton)
+Core business logic is encapsulated in singleton services in `services/`.
+*   **`ConfigService`**: Centralized configuration management. Loads from DB > Env > Defaults. Thread-safe.
+*   **`AIService`**: High-level orchestrator for user-facing AI tasks (Interview, Summary). Facade over specific provider implementations.
+*   **`VisionService`**: Handles image analysis. Routes to Gemini, Groq, or Local Analyzer.
+*   **`OllamaManager`**: Manages local Ollama process lifecycle (start/stop/check).
 
-## Key Design Patterns
+### 2. Dual-Brain Search (Hybrid RAG)
+Storage and retrieval of memories use a hybrid approach ("Dual Brain").
+*   **Indexing**: Every photo is embedded twice:
+    1.  **Local Brain**: `BAAI/bge-m3` (Dense, High Precision).
+    2.  **Cloud Brain**: Gemini Embedding (Semantic, Broad).
+*   **Retrieval**: Uses Reciprocal Rank Fusion (RRF) to combine results from both indices.
+*   **Reranking**: Top candidates are optionally reranked by an LLM (Gemini Flash) for context verification.
 
-### 1. The "Strict Config" Pattern (`services/config.py`)
-Configuration follows a defined hierarchy to support both granular UI control and secure environment setup:
-*   **Layer 1 (DB)**: Runtime settings managed via the `Manage` UI. (Highest Priority)
-*   **Layer 2 (Env)**: Infrastructure secrets (API Keys) and initial build configuration.
-*   **Layer 3 (Code)**: System defaults (e.g. `classic` theme) for immediate stability.
+### 3. Asynchronous Processing (Task Queue)
+Heavy AI operations are offloaded to a background worker using **Huey**.
+*   **Event Pipeline**: Upload -> Enqueue -> `process_ai_for_event` -> (Face Rec -> Vision -> Context -> RAG).
+*   **Isolation**: Worker runs in a separate process, bypassing GIL issues and preventing web server blocking.
+*   **Resiliency**: Tasks persist in `decade_ops.db` and retry on failure.
 
-### 2. The Hybrid AI Router Strategy (`services/analyzer.py`)
-The `ImageAnalyzer` service balances resource usage and capability via strict routing:
-*   **Router Logic**: Checks `config.ai_provider`.
-    *   `gemini`: Invokes `services/gemini.py`. Handles validation and returns errors if unconfigured.
-    *   `local`: Invokes `Florence-2` model (loaded in-memory).
-    *   `none` (Default): Returns empty results, keeping the system lightweight.
+### 4. Switchable AI Provider Strategy
+The system supports hot-swapping AI backends without code changes.
+*   **Provider Independent**: High-level code calls generic methods (`analyze_image`, `chat_query`).
+*   **Fallback Chain**:
+    *   **Vision**: Gemini -> Groq -> Local (Qwen).
+    *   **Chat**: Gemini -> Groq -> Local (Ollama).
+*   **Lazy Loading**: Heavy local libraries (`torch`, `transformers`) are only imported inside the methods that need them, preventing memory bloat when using Cloud modes.
 
-### 3. Asynchronous Background Processing
-Resource-intensive tasks are decoupled from the main request thread using FastAPI `BackgroundTasks`:
-*   **Pipeline**: Upload Request -> File Save -> 200 OK Response -> Background Task (Resize → Thumbnails → Metadata Extraction → AI Queue).
-
-### 4. Server-Driven UI (HTMX)
-The frontend architecture minimizes client-side complexity:
-*   **Pattern**: User Interactions (Clicks/Scrolls) -> Server generates HTML -> HTMX swaps DOM elements.
-*   **Implementation**: Used for Infinite Scroll (`manage_row.html`), Modal Content (`daily_memory.html`), and Form Submission (`settings/update`).
+### 5. Frontend-Backend Coupling
+*   **Server-Side Rendering (SSR)**: Primary UI is rendered via Jinja2 for SEO and performance on low-end devices.
+*   **Hydration**: Vanilla JS attaches to DOM elements for interactivity (Modals, Infinite Scroll).
+*   **API-First**: All actions are exposed as REST APIs, used by both SSR forms and JS fetch calls.

@@ -77,9 +77,8 @@ class ConfigService:
             return os.getenv(env_key)
             
         # 3. Default
-        # 3. Default
         if default is None:
-            if key == "ai_provider": return "local"
+            if key == "ai_provider": return "gemini"
             if key == "theme": return "classic"
         
         return default

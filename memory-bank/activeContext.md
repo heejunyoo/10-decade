@@ -11,24 +11,26 @@ The system is currently operating with a stabilized architecture. All core modul
 *   **Safety**: "Implicit Local Fallback" is **Disabled**. The system remains **Idle** (no AI load) until a provider is explicitly selected in the `Manage` interface.
 
 ### 2. AI & Vision Subsystem
-*   **State**: Hybrid (Optimized).
+*   **State**: Cloud-First (Optimized for Storage).
 *   **Routing**:
-    *   **Gemini (Cloud)**:
-        *   **Smart Probe**: Zero-cost setup probe to auto-downgrade (Pro->Flash) if rate-limited.
-        *   **Resilience**: `tenacity` based exponential backoff (retry on 429).
-    *   **Local (On-Device)**:
-        *   **Single-Pass Inference**: Combines Tagging & Captioning into one `Florence-2` call (~50% speedup).
-        *   **RAG**: Threshold lowered to 0.6 prevents valid data loss.
-*   **Face Recognition**: Powered by `InsightFace` (CPU-optimized).
+    *   **Gemini (Primary)**: Default provider. Used for Vision, Chat, and Embedding.
+        *   **Smart Probe**: Auto-downgrade (Pro->Flash) if rate-limited.
+        *   **Resilience**: `tenacity` based exponential backoff.
+    *   **Groq (Secondary)**: Fallback provider. Free tier alternative (Llama 3.2 Vision).
+    *   **Local (Optional)**:
+        *   **On-Demand**: Models (Qwen, Ollama) are NOT downloaded by default.
+        *   **Auto-Fetch**: Triggered only if user explicitly selects 'Local' mode.
+        *   **Storage**: Requires ~20GB+ disk space if enabled.
+*   **Face Recognition**: Powered by `InsightFace` (CPU-optimized, always local).
 
 ### 3. Documentation
 *   **State**: Synchronized.
 *   **Coverage**: `README.md` and `docs/TECHNICAL_MANUAL.md` serve as the sole source of truth, reflecting the actual v3.0.0 codebase.
 
 ## Current Focus
-*   **Performance Verification**: Validating the speedup from Single-Pass Local Inference.
-*   **Integration Testing**: Confirming Gemini Retry logic handles rate limits gracefully.
-*   **System Stability**: Ensuring no regression after Data Reset.
+*   **Optimization**: Reducing disk footprint by removing unused local models.
+*   **Reliability**: Ensuring consistent AI experience via Gemini/Groq.
+*   **Verification**: Validating on-demand download logic for local fallback.
 
 ## Active Roadmap
 *   [ ] User Acceptance Testing (UAT) for "Memory Box" daily question flow.
